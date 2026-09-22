@@ -1,0 +1,646 @@
+local InputService = game:GetService('UserInputService');
+local TextService = game:GetService('TextService');
+local CoreGui = game:GetService('CoreGui');
+local Teams = game:GetService('Teams');
+local Players = game:GetService('Players');
+local RunService = game:GetService('RunService');
+local TweenService = game:GetService('TweenService');
+local Lighting = game:GetService('Lighting');
+local RenderStepped = RunService.RenderStepped;
+local LocalPlayer = Players.LocalPlayer;
+local Mouse = LocalPlayer:GetMouse();
+local Workspace = game:GetService('Workspace');
+local Camera = Workspace.CurrentCamera;
+
+local ProtectGui = protectgui or (syn and syn.protect_gui) or (function() end);
+local ScreenGui = Instance.new('ScreenGui');
+ProtectGui(ScreenGui);
+ScreenGui.Name = "NobHookHub_Ultimate_Mobile";
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global;
+ScreenGui.Parent = CoreGui;
+
+local Toggles = {};
+local Options = {};
+getgenv().Toggles = Toggles;
+getgenv().Options = Options;
+
+local Library = {
+Registry = {};
+RegistryMap = {};
+HudRegistry = {};
+FontColor = Color3.fromRGB(255, 255, 255);
+MainColor = Color3.fromRGB(28, 28, 28);
+BackgroundColor = Color3.fromRGB(20, 20, 20);
+AccentColor = Color3.fromRGB(0, 85, 255);
+OutlineColor = Color3.fromRGB(50, 50, 50);
+RiskColor = Color3.fromRGB(255, 50, 50);
+Black = Color3.new(0, 0, 0);
+Font = Enum.Font.Code;
+OpenedFrames = {};
+DependencyBoxes = {};
+Signals = {};
+ScreenGui = ScreenGui;
+};
+
+local RainbowStep = 0
+local Hue = 0
+
+table.insert(Library.Signals, RenderStepped:Connect(function(Delta)
+RainbowStep = RainbowStep + Delta
+if RainbowStep >= (1 / 60) then
+RainbowStep = 0
+Hue = Hue + (1 / 400);
+if Hue > 1 then Hue = 0; end;
+Library.CurrentRainbowHue = Hue;
+Library.CurrentRainbowColor = Color3.fromHSV(Hue, 0.8, 1);
+end
+end))
+
+function Library:Create(Class, Properties)
+local _Instance = Class;
+if type(Class) == 'string' then
+_Instance = Instance.new(Class);
+end;
+for Property, Value in next, Properties do
+_Instance[Property] = Value;
+end;
+return _Instance;
+end;
+
+function Library:ApplyTextStroke(Inst)
+Inst.TextStrokeTransparency = 1;
+Library:Create('UIStroke', {
+Color = Color3.new(0, 0, 0);
+Thickness = 1;
+LineJoinMode = Enum.LineJoinMode.Miter;
+Parent = Inst;
+});
+end;
+
+function Library:CreateLabel(Properties)
+local _Instance = Library:Create('TextLabel', {
+BackgroundTransparency = 1;
+Font = Library.Font;
+TextColor3 = Library.FontColor;
+TextSize = 14;
+TextStrokeTransparency = 0;
+});
+Library:ApplyTextStroke(_Instance);
+return Library:Create(_Instance, Properties);
+end;
+
+-- ==========================================
+-- UI 메인 윈도우 생성 (NobHook 스타일)
+-- ==========================================
+local WindowOuter = Library:Create('Frame', {
+Name = 'MainWindow',
+BackgroundColor3 = Library.MainColor,
+BorderColor3 = Library.OutlineColor,
+Position = UDim2.fromScale(0.15, 0.15),
+Size = UDim2.fromOffset(520, 480),
+Active = true,
+Draggable = true,
+Parent = ScreenGui,
+});
+
+local WindowInner = Library:Create('Frame', {
+BackgroundColor3 = Library.BackgroundColor,
+BorderColor3 = Library.OutlineColor,
+BorderMode = Enum.BorderMode.Inset,
+Size = UDim2.new(1, 0, 1, 0),
+Parent = WindowOuter,
+});
+
+local TopBar = Library:Create('Frame', {
+BackgroundColor3 = Library.MainColor,
+BorderColor3 = Library.OutlineColor,
+Size = UDim2.new(1, 0, 0, 25),
+Parent = WindowInner,
+});
+
+local TitleLabel = Library:CreateLabel({
+Position = UDim2.new(0, 8, 0, 0),
+Size = UDim2.new(1, -8, 1, 0),
+Text = "NobHook Ultimate Hub | Mobile & PC",
+TextColor3 = Library.FontColor,
+TextXAlignment = Enum.TextXAlignment.Left,
+TextSize = 11,
+Parent = TopBar,
+});
+
+local ContentContainer = Library:Create('ScrollingFrame', {
+BackgroundColor3 = Library.BackgroundColor,
+BorderColor3 = Library.OutlineColor,
+Position = UDim2.new(0, 10, 0, 35),
+Size = UDim2.new(1, -20, 1, -45),
+CanvasSize = UDim2.new(0, 0, 3.5, 0),
+ScrollBarThickness = 4,
+Parent = WindowInner,
+});
+
+local UIList = Library:Create('UIListLayout', {
+FillDirection = Enum.FillDirection.Vertical;
+SortOrder = Enum.SortOrder.LayoutOrder;
+Padding = UDim.new(0, 8);
+Parent = ContentContainer,
+});
+
+-- ==========================================
+-- 메뉴 토글 버튼 (모바일 및 PC 호환 플로팅 버튼)
+-- ==========================================
+local IsMenuOpened = true;
+
+local ToggleMenuBtn = Library:Create('TextButton', {
+Name = 'ToggleMenuButton',
+BackgroundColor3 = Library.MainColor,
+BorderColor3 = Library.OutlineColor,
+Position = UDim2.new(0, 15, 0, 15),
+Size = UDim2.fromOffset(110, 38),
+Font = Library.Font,
+Text = "UI 켜기/끄기",
+TextColor3 = Library.FontColor,
+TextSize = 12,
+Active = true,
+Draggable = true,
+Parent = ScreenGui,
+});
+Library:ApplyTextStroke(ToggleMenuBtn);
+
+ToggleMenuBtn.MouseButton1Click:Connect(function()
+IsMenuOpened = not IsMenuOpened;
+WindowOuter.Visible = IsMenuOpened;
+end);
+
+-- PC 사용자용 우측 쉬프트 단축키 지원
+InputService.InputBegan:Connect(function(input, gameProcessed)
+if input.KeyCode == Enum.KeyCode.RightShift then
+IsMenuOpened = not IsMenuOpened;
+WindowOuter.Visible = IsMenuOpened;
+end
+end);
+
+-- 토글 생성 헬퍼 함수
+local function AddToggleUI(name, callback)
+local ToggleOuter = Library:Create('Frame', {
+BackgroundColor3 = Library.MainColor,
+BorderColor3 = Library.OutlineColor,
+Size = UDim2.new(1, -10, 0, 30),
+Parent = ContentContainer,
+});
+
+local ToggleLabel = Library:CreateLabel({
+Position = UDim2.new(0, 10, 0, 0),
+Size = UDim2.new(0.75, 0, 1, 0),
+Text = name,
+TextXAlignment = Enum.TextXAlignment.Left,
+TextSize = 12,
+Parent = ToggleOuter,
+});
+
+local BoxOuter = Library:Create('Frame', {
+BackgroundColor3 = Color3.new(0, 0, 0),
+BorderColor3 = Color3.new(0, 0, 0),
+Position = UDim2.new(1, -35, 0.5, -8),
+Size = UDim2.fromOffset(16, 16),
+Parent = ToggleOuter,
+});
+
+local BoxInner = Library:Create('Frame', {
+BackgroundColor3 = Library.BackgroundColor,
+BorderColor3 = Library.OutlineColor,
+BorderMode = Enum.BorderMode.Inset,
+Size = UDim2.new(1, 0, 1, 0),
+Parent = BoxOuter,
+});
+
+local State = false;
+ToggleOuter.InputBegan:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+State = not State;
+BoxInner.BackgroundColor3 = State and Library.AccentColor or Library.BackgroundColor;
+callback(State);
+end
+end);
+end
+
+-- ==========================================
+-- 1. Enemy ESP
+-- ==========================================
+AddToggleUI("100% - Enemy ESP (적 투시 하이라이트)", function(Value)
+getgenv().StableESP = Value;
+task.spawn(function()
+while getgenv().StableESP do
+task.wait(3);
+pcall(function()
+for _, player in ipairs(Players:GetPlayers()) do
+if player ~= LocalPlayer and player.Character then
+local char = player.Character;
+if not char:FindFirstChild("Stable_Highlight") then
+local hl = Instance.new("Highlight");
+hl.Name = "Stable_Highlight";
+hl.Adornee = char;
+hl.FillColor = Color3.fromRGB(255, 50, 50);
+hl.OutlineColor = Color3.fromRGB(255, 255, 255);
+hl.FillTransparency = 0.4;
+hl.Parent = char;
+end
+end
+end
+end)
+end
+for _, player in ipairs(Players:GetPlayers()) do
+if player.Character then
+local hl = player.Character:FindFirstChild("Stable_Highlight");
+if hl then hl:Destroy(); end
+end
+end
+end);
+end);
+
+-- ==========================================
+-- 2. FullBright
+-- ==========================================
+AddToggleUI("100% - FullBright (어두운 맵 밝게)", function(Value)
+getgenv().StableFB = Value;
+task.spawn(function()
+while getgenv().StableFB do
+Lighting.Brightness = 2;
+Lighting.ClockTime = 14;
+Lighting.GlobalShadows = false;
+Lighting.FogEnd = 999999;
+task.wait(5);
+end
+Lighting.GlobalShadows = true;
+end);
+end);
+
+-- ==========================================
+-- 3. Wide FOV
+-- ==========================================
+AddToggleUI("100% - Wide FOV (시야각 넓히기)", function(Value)
+getgenv().StableFOV = Value;
+task.spawn(function()
+while getgenv().StableFOV do
+Camera.FieldOfView = 110;
+task.wait(2);
+end
+Camera.FieldOfView = 70;
+end);
+end);
+
+-- ==========================================
+-- 4. Infinite Jump
+-- ==========================================
+AddToggleUI("100% - Infinite Jump (공중 무한 점프)", function(Value)
+getgenv().StableInfJump = Value;
+InputService.JumpRequest:Connect(function()
+if getgenv().StableInfJump then
+local char = LocalPlayer.Character;
+if char then
+local hum = char:FindFirstChildOfClass("Humanoid");
+if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping); end
+end
+end
+end);
+end);
+
+-- ==========================================
+-- 5. 완벽 개선된 Desync Ragebot + 올헤드 + 확실한 자동발사
+-- ==========================================
+AddToggleUI("NobHook - Ragebot [All-Head + AutoShoot Fix]", function(Value)
+local __p6q7r8 = getgenv()
+
+if Value then
+if __p6q7r8.__s9t0u1 and type(__p6q7r8.__s9t0u1.SetState) == "function" then
+__p6q7r8.__s9t0u1:SetState(true)
+return
+end
+
+local __a1b2c3 = setmetatable({}, {
+__index = function(__d4e5f6, __g7h8i9)
+local __j0k1l2, __m3n4o5 = pcall(function() return game:GetService(__g7h8i9) end)
+if __m3n4o5 then return cloneref(__m3n4o5) end
+return nil
+end
+})
+
+local __v2w3x4 = __a1b2c3.Players
+local __y5z6a7 = __a1b2c3.RunService
+local __b8c9d0 = __a1b2c3.ReplicatedStorage
+local __k7l8m9 = __v2w3x4.LocalPlayer
+local __q3r4s5 = __k7l8m9.PlayerScripts
+local __t6u7v8 = require(__q3r4s5.Modules.ItemTypes.Gun)
+local __w9x0y1 = require(__b8c9d0.Modules.Utility)
+
+local __z2a3b4 = setmetatable({}, {
+__index = function(_, __c5d6e7)
+local __f8g9h0 = __k7l8m9.Character
+if not __f8g9h0 then return nil end
+if __c5d6e7 == "__root" then return __f8g9h0:FindFirstChild("HumanoidRootPart")
+elseif __c5d6e7 == "__head" then return __f8g9h0:FindFirstChild("Head") end
+return nil
+end
+})
+
+__p6q7r8.__s9t0u1 = {}
+local __i1j2k3 = __p6q7r8.__s9t0u1
+
+function __i1j2k3:__init()
+self.__active = false
+self.__target = nil
+self.__desync = false
+self.__conn1 = nil
+self.__conn2 = nil
+self.__task1 = nil
+self.__oldfunc = nil
+self.__autoshootConn = nil
+self:__setup()
+self:SetState(true)
+end
+
+function __i1j2k3:__setup()
+local lastCheck = 0
+self.__conn1 = __y5z6a7.Heartbeat:Connect(function()
+if not self.__active then return end
+local now = tick()
+if now - lastCheck >= 0.05 then
+lastCheck = now
+self.__target = self:__find()
+end
+end)
+
+local __l4m5n6 = __t6u7v8.StartShooting
+self.__oldfunc = __l4m5n6
+__t6u7v8.StartShooting = function(__o7p8q9, ...)
+local __r0s1t2 = {__l4m5n6(__o7p8q9, ...)}
+if not self.__active then return unpack(__r0s1t2) end
+if not __o7p8q9.ClientFighter or not __o7p8q9.ClientFighter.IsLocalPlayer then return unpack(__r0s1t2) end
+
+local __u3v4w5 = __r0s1t2[3]
+if not __u3v4w5 or typeof(__u3v4w5) ~= "table" then return unpack(__r0s1t2) end
+
+__r0s1t2[4] = true
+local __x6y7z8 = self.__target
+if not self.__active or not __x6y7z8 or not __x6y7z8.Character then return unpack(__r0s1t2) end
+
+if not self.__desync or self.__curr ~= __x6y7z8 then
+self:__desync_start(__x6y7z8)
+end
+
+if self.__task1 then task.cancel(self.__task1) self.__task1 = nil end
+
+local __a9b0c1 = __x6y7z8.Character:FindFirstChild("Head")
+if not __a9b0c1 then return unpack(__r0s1t2) end
+
+local __d2e3f4 = __a9b0c1.Position
+local __g5h6i7 = __a9b0c1.CFrame
+local __p4q5r6 = __g5h6i7:ToObjectSpace(CFrame.new(__d2e3f4))
+
+__u3v4w5[utf8.char(0)] = __w9x0y1:EncodeCFrame(__g5h6i7)
+__u3v4w5[utf8.char(1)] = __w9x0y1:EncodeCFrame(__g5h6i7)
+__u3v4w5[utf8.char(2)] = __a9b0c1
+__u3v4w5[utf8.char(3)] = __w9x0y1:EncodeCFrame(__p4q5r6)
+
+self.__task1 = task.delay(0.2, function() self:__desync_stop() end)
+return unpack(__r0s1t2)
+end
+end
+
+function __i1j2k3:__find()
+local myChar = __k7l8m9.Character
+if not myChar then return nil end
+local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+if not myRoot then return nil end
+
+local closest, closestDist = nil, math.huge
+for _, player in next, __v2w3x4:GetPlayers() do
+if player == __k7l8m9 or player:GetAttribute("TeamID") == __k7l8m9:GetAttribute("TeamID") then continue end
+local char = player.Character
+if not char then continue end
+local root, head, hum = char:FindFirstChild("HumanoidRootPart"), char:FindFirstChild("Head"), char:FindFirstChildWhichIsA("Humanoid")
+if not (root and head and hum and hum.Health > 0) then continue end
+local dist = (myRoot.Position - root.Position).Magnitude
+if dist <= 500 and dist < closestDist then
+closestDist, closest = dist, player
+end
+end
+return closest
+end
+
+function __i1j2k3:__desync_start(__c3d4e5)
+if self.__conn2 then self.__conn2:Disconnect() end
+self.__desync, self.__curr = true, __c3d4e5
+self.__conn2 = __y5z6a7.Heartbeat:Connect(function()
+if not self.__desync then return end
+local __f6g7h8 = __z2a3b4.__root
+if not __f6g7h8 then return end
+local __i9j0k1 = __c3d4e5.Character and __c3d4e5.Character:FindFirstChild("Head")
+if not __i9j0k1 then self:__desync_stop() return end
+
+local __l2m3n4, __o5p6q7, __r8s9t0 = __f6g7h8.CFrame, __f6g7h8.Velocity, __f6g7h8.RotVelocity
+__f6g7h8.CFrame = __i9j0k1.CFrame * CFrame.new(0, -0.1, 0)
+__y5z6a7:BindToRenderStep("__restore", 101, function()
+__f6g7h8.CFrame = __l2m3n4
+__f6g7h8.Velocity = __o5p6q7
+__f6g7h8.RotVelocity = __r8s9t0
+__y5z6a7:UnbindFromRenderStep("__restore")
+end)
+end)
+end
+
+function __i1j2k3:__desync_stop()
+self.__desync, self.__curr = false, nil
+if self.__conn2 then self.__conn2:Disconnect() self.__conn2 = nil end
+end
+
+function __i1j2k3:SetState(state)
+self.__active = state
+if state then
+if not self.__autoshootConn then
+self.__autoshootConn = task.spawn(function()
+while self.__active do
+pcall(function()
+if self.__target and self.__target.Character then
+local hum = self.__target.Character:FindFirstChildWhichIsA("Humanoid")
+if hum and hum.Health > 0 then
+local char = __k7l8m9.Character
+if char then
+for _, tool in pairs(char:GetChildren()) do
+if tool:IsA("Tool") then
+pcall(function()
+__t6u7v8.StartShooting(__t6u7v8)
+end)
+end
+end
+end
+end
+end
+end)
+task.wait(0.05)
+end
+end)
+end
+else
+self:__desync_stop()
+self.__active = false
+end
+end
+__i1j2k3:__init()
+else
+if __p6q7r8.__s9t0u1 and type(__p6q7r8.__s9t0u1.SetState) == "function" then
+__p6q7r8.__s9t0u1:SetState(false)
+end
+end
+end);
+
+-- ==========================================
+-- 6. Noclip
+-- ==========================================
+AddToggleUI("NobHook - Noclip (벽 통과)", function(Value)
+getgenv().NobHookNoclip = Value;
+task.spawn(function()
+while getgenv().NobHookNoclip do
+RunService.Stepped:Wait();
+local char = LocalPlayer.Character;
+if char then
+for _, v in pairs(char:GetDescendants()) do
+if v:IsA("BasePart") then v.CanCollide = false; end
+end
+end
+end
+end)
+end);
+
+-- ==========================================
+-- 7. Fly (모바일 및 PC 조작 지원)
+-- ==========================================
+local FlyControlGui = nil;
+AddToggleUI("NobHook - Fly (공중 자유 비행)", function(Value)
+getgenv().NobHookFly = Value;
+local speed = 50;
+
+if Value then
+-- 모바일 사용자를 위한 화면 비행 조작 버튼 패널 생성
+if not FlyControlGui then
+FlyControlGui = Instance.new("ScreenGui");
+FlyControlGui.Name = "FlyControlGui";
+FlyControlGui.Parent = CoreGui;
+
+local FlyFrame = Instance.new("Frame", FlyControlGui);
+FlyFrame.Size = UDim2.fromOffset(140, 140);
+FlyFrame.Position = UDim2.new(1, -160, 0.5, -70);
+FlyFrame.BackgroundTransparency = 0.5;
+FlyFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0);
+FlyFrame.Draggable = true;
+FlyFrame.Active = true;
+
+local function createFlyBtn(text, pos, callback)
+local btn = Instance.new("TextButton", FlyFrame);
+btn.Size = UDim2.fromOffset(60, 50);
+btn.Position = pos;
+btn.Text = text;
+btn.TextColor3 = Color3.fromRGB(255, 255, 255);
+btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40);
+btn.Font = Enum.Font.Code;
+btn.TextSize = 14;
+local held = false;
+btn.InputBegan:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+held = true;
+task.spawn(function()
+while held and getgenv().NobHookFly do
+callback();
+task.wait();
+end
+end)
+end
+end)
+btn.InputEnded:Connect(function(input)
+if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+held = false;
+end
+end)
+end
+
+-- 상승 버튼
+createFlyBtn("UP", UDim2.fromOffset(10, 10), function()
+local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart");
+if root then root.CFrame = root.CFrame + Vector3.new(0, 1, 0); end
+end);
+-- 하강 버튼
+createFlyBtn("DOWN", UDim2.fromOffset(75, 10), function()
+local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart");
+if root then root.CFrame = root.CFrame - Vector3.new(0, 1, 0); end
+end);
+-- 전진 토글/홀드 버튼
+createFlyBtn("FWD", UDim2.fromOffset(40, 75), function()
+local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart");
+if root then root.CFrame = root.CFrame + Camera.CFrame.LookVector * 1.5; end
+end);
+end
+FlyControlGui.Enabled = true;
+else
+if FlyControlGui then
+FlyControlGui.Enabled = false;
+end
+end
+
+task.spawn(function()
+local bg, bv;
+local function startFly()
+local char = LocalPlayer.Character;
+if not char then return; end
+local root = char:FindFirstChild("HumanoidRootPart");
+local hum = char:FindFirstChildOfClass("Humanoid");
+if not root or not hum then return; end
+
+bg = Instance.new("BodyGyro");
+bg.P = 9e4;
+bg.maxTorque = Vector3.new(9e4, 9e4, 9e4);
+bg.cframe = root.CFrame;
+bg.Parent = root;
+
+bv = Instance.new("BodyVelocity");
+bv.velocity = Vector3.new(0, 0, 0);
+bv.maxForce = Vector3.new(9e4, 9e4, 9e4);
+bv.Parent = root;
+
+task.spawn(function()
+while getgenv().NobHookFly and char and root.Parent do
+local moveDir = Vector3.new();
+-- PC 키보드 입력 체크
+if InputService:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + Camera.CFrame.LookVector; end
+if InputService:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - Camera.CFrame.LookVector; end
+if InputService:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - Camera.CFrame.RightVector; end
+if InputService:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + Camera.CFrame.RightVector; end
+if InputService:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0); end
+if InputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0); end
+
+bv.velocity = moveDir * speed;
+bg.cframe = Camera.CFrame;
+RunService.RenderStepped:Wait();
+end
+if bg then bg:Destroy(); end
+if bv then bv:Destroy(); end
+end)
+end
+
+if Value then
+startFly();
+else
+if bg then bg:Destroy(); end
+if bv then bv:Destroy(); end
+end
+end)
+end);
+
+local function toggleTableAttribute(attribute, value)
+for _, gcVal in pairs(getgc(true)) do
+if type(gcVal) == "table" and rawget(gcVal, attribute) then
+gcVal[attribute] = value
+end
+end
+end
+toggleTableAttribute("ShootCooldown", 0)
+toggleTableAttribute("ShootCooldown", 0)
+print('Nov Hook Mobile & PC Ready!')
