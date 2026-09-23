@@ -1,0 +1,31 @@
+local _0x1a2b=game local _0x3c4d=function(a,b)return a[b]end
+local _0x5e6f=_0x3c4d(_0x1a2b,"GetService")("Players")
+local _0x7g8h=_0x3c4d(_0x5e6f,"LocalPlayer")
+local _0x9i0j=function(...)return string.char(...)end
+local _0xk1l2=_0x9i0j(83,99,114,101,101,110,71,117,105)
+local _0xm3n4=Instance.new(_0xk1l2)
+local _0xo5p6=_0x9i0j(76,79,76,79,118,101,114,108,97,121)
+_0xm3n4.Name=_0xo5p6
+_0xm3n4.IgnoreGuiInset=true
+_0xm3n4.ResetOnSpawn=false
+_0xm3n4.DisplayOrder=(999*1000)+999
+local _0xq7r8=_0x3c4d(_0x7g8h,"WaitForChild")("PlayerGui")
+_0xm3n4.Parent=_0xq7r8
+local _0xs9t0=Instance.new(_0x9i0j(70,114,97,109,101))
+_0xs9t0.Size=UDim2.fromScale(1,1)
+_0xs9t0.Position=UDim2.fromScale(0,0)
+_0xs9t0.BackgroundColor3=Color3.new(0,0,0)
+_0xs9t0.BorderSizePixel=0
+_0xs9t0.Parent=_0xm3n4
+local _0xu1v2=Instance.new(_0x9i0j(84,101,120,116,76,97,98,101,108))
+_0xu1v2.Size=UDim2.fromScale(1,1)
+_0xu1v2.BackgroundTransparency=1
+_0xu1v2.Text=_0x9i0j(76,79,76)
+_0xu1v2.TextColor3=Color3.new(1,1,1)
+_0xu1v2.TextScaled=true
+_0xu1v2.Font=Enum.Font[_0x9i0j(71,111,116,104,97,109,66,108,97,99,107)]
+_0xu1v2.Parent=_0xs9t0
+local _0xw3x4=function()return task.wait(1)end
+while _0xm3n4.Parent do
+_0xw3x4()
+end
