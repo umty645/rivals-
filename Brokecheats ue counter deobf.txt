@@ -1,0 +1,199 @@
+Undeviated did this
+
+local v1 = loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/Library.lua"))()
+local v2 = loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/addons/ThemeManager.lua"))()
+local v3 = loadstring(game:HttpGet("https://raw.githubusercontent.com/deividcomsono/Obsidian/main/addons/SaveManager.lua"))()
+local Options = v1.Options
+local _ = v1.Toggles
+v1.ForceCheckbox = false
+v1.ShowToggleFrameInKeybinds = true
+local v6 = v1:CreateWindow({
+	Title = "UE Counter",
+	Footer = "brokecheat counter",
+	NotifySide = "Right",
+	ShowCustomCursor = true
+})
+local v7 = v6:AddTab("Main", "user")
+local v8 = v6:AddTab("UI Settings", "settings")
+local t1 = {
+	Main = v7,
+	["UI Settings"] = v8
+}
+local v10 = t1.Main:AddGroupbox({
+	Side = "Left",
+	Name = "Counters"
+})
+local LocalPlayer = game:GetService("Players").LocalPlayer
+local n1 = 100
+local n2 = 0.2
+local u14 = false
+local function v15()
+	local Character = LocalPlayer.Character
+
+	if not Character then
+		Character = LocalPlayer.CharacterAdded:Wait()
+	end
+
+	local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+	local v25 = HumanoidRootPart.Position + Vector3.new(0, 500, 0)
+
+	HumanoidRootPart.CFrame = CFrame.new(v25)
+end
+v10:AddToggle("MyToggle", {
+	Text = "UE Counter",
+	Tooltip = "Counters UE's ragebot",
+	DisabledTooltip = "I am disabled!",
+	Default = true,
+	Disabled = false,
+	Visible = true,
+	Risky = false,
+	Callback = function(p1)
+		u14 = p1
+		print("[cb] MyToggle changed to:", p1)
+
+		if u14 then
+			task.spawn(function()
+				while u14 do
+					v15()
+					task.wait(n2)
+				end
+			end)
+		end
+	end
+})
+v10:AddDivider()
+v10:AddSlider("MySlider", {
+	Text = "Teleport cooldown",
+	Default = 0.2,
+	Min = 0,
+	Max = 1,
+	Rounding = 2,
+	Compact = false,
+	Callback = function(p2)
+		n2 = p2
+		print("[cb] MySlider was changed! New value:", p2)
+	end,
+	Tooltip = "I am a slider!",
+	DisabledTooltip = "I am disabled!",
+	Disabled = false,
+	Visible = true
+})
+local _ = Options.MySlider.Value
+Options.MySlider:OnChanged(function()
+	print("MySlider was changed! New value:", Options.MySlider.Value)
+end)
+Options.MySlider:SetValue(3)
+v10:AddSlider("MySlider2", {
+	Text = "Y distance",
+	Default = 100,
+	Min = 100,
+	Max = 1000,
+	Rounding = 0,
+	Compact = false,
+	Callback = function(p3)
+		n1 = p3
+		print("[cb] MySlider2 was changed! New value:", p3)
+	end,
+	FormatDisplayValue = function(_, _)
+	end,
+	Tooltip = "I am a slider!",
+	DisabledTooltip = "I am disabled!",
+	Disabled = false,
+	Visible = true
+})
+t1.Main:AddGroupbox({
+	Side = "Left",
+	Name = "Info"
+}):AddLabel("Counters UE's ragebot by increasing your Y coordinates which UE cant keep up with.\nYou can customize the distance and cooldown using the sliders above this text.", true)
+v1:AddDraggableLabel("le brokecheat tuff counter")
+
+local v17 = t1["UI Settings"]:AddGroupbox({
+	Side = "Left",
+	Name = "Menu",
+	IconName = "wrench"
+})
+v17:AddToggle("KeybindMenuOpen", {
+	Default = v1.KeybindFrame.Visible,
+	Text = "Open Keybind Menu",
+	Callback = function(p6)
+		v1.KeybindFrame.Visible = p6
+	end
+})
+local ShowCustomCursor = v1.ShowCustomCursor
+v17:AddToggle("ShowCustomCursor", {
+	Text = "Custom Cursor",
+	Default = ShowCustomCursor,
+	Callback = function(p7)
+		v1.ShowCustomCursor = p7
+	end
+})
+local AddToggle = v17.AddToggle
+local AlwaysOnTop = v6.AlwaysOnTop
+AddToggle(v17, "AlwaysOnTop", {
+	Text = "Always On Top",
+	Default = AlwaysOnTop,
+	Callback = function(p8)
+		v6:SetAlwaysOnTop(p8)
+	end
+})
+v17:AddDropdown("NotificationSide", {
+	Values = {
+		"Left",
+		"Right"
+	},
+	Default = "Right",
+	Text = "Notification Side",
+	Callback = function(p9)
+		v1:SetNotifySide(p9)
+	end
+})
+v17:AddDropdown("DPIDropdown", {
+	Values = {
+		"50%",
+		"75%",
+		"100%",
+		"125%",
+		"150%",
+		"175%",
+		"200%"
+	},
+	Default = "100%",
+	Text = "DPI Scale",
+	Callback = function(p10)
+		local num = tonumber((p10:gsub("%%", "")))
+
+		v1:SetDPIScale(num)
+	end
+})
+local AddSlider = v17.AddSlider
+local CornerRadius = v1.CornerRadius
+AddSlider(v17, "UICornerSlider", {
+	Text = "Corner Radius",
+	Default = CornerRadius,
+	Min = 0,
+	Max = 20,
+	Rounding = 0,
+	Callback = function(p11)
+		v6:SetCornerRadius(p11)
+	end
+})
+v17:AddDivider()
+v17:AddLabel("Menu bind"):AddKeyPicker("MenuKeybind", {
+	Default = "RightShift",
+	NoUI = true,
+	Text = "Menu keybind"
+})
+v17:AddButton("Unload", function()
+	v1:Unload()
+end)
+v1.ToggleKeybind = Options.MenuKeybind
+v2:SetLibrary(v1)
+v3:SetLibrary(v1)
+v3:IgnoreThemeSettings()
+v3:SetIgnoreIndexes({ "MenuKeybind" })
+v2:SetFolder("brokecheatcounter")
+v3:SetFolder("brokecheatcounter/rivals")
+v3:SetSubFolder("rivals")
+v3:BuildConfigSection(t1["UI Settings"])
+v2:ApplyToTab(t1["UI Settings"])
+v3:LoadAutoloadConfig()
