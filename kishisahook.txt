@@ -1,0 +1,152 @@
+-- Kishia Hook v3 (Rivals Edition) - Deobfuscated / Open Source Dump
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+local Config = {
+    Aimbot = {
+        Enabled = true,
+        Key = Enum.UserInputType.MouseButton2,
+        Smoothness = 0.15,
+        Hitbox = "HumanoidRootPart",
+        FOV = 120,
+        WallCheck = true
+    },
+    Visuals = {
+        BoxESP = true,
+        NameESP = true,
+        HealthBar = true,
+        Chams = true,
+        ChamsColor = Color3.fromRGB(255, 40, 40)
+    },
+    Combat = {
+        SilentAim = true,
+        HitChance = 100,
+        FieldOfView = 150
+    }
+}
+
+-- FOV Circle
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = true
+FOVCircle.Transparency = 0.7
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Thickness = 1
+FOVCircle.Radius = Config.Aimbot.FOV
+FOVCircle.Filled = false
+
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Insert then
+        Config.Aimbot.Enabled = not Config.Aimbot.Enabled
+    end
+end)
+
+local function GetClosestPlayer()
+    local target = nil
+    local shortestDist = Config.Aimbot.FOV
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local hrp = player.Character:FindFirstChild(Config.Aimbot.Hitbox)
+            if hrp then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                if onScreen then
+                    local dist = (Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+                    if dist < shortestDist then
+                        shortestDist = dist
+                        target = player
+                    end
+                end
+            end
+        end
+    end
+    return target
+end
+
+-- Silent Aim Hook / Metatable Hook
+local mt = getrawmetatable(game)
+local oldIndex = mt.__index
+setreadonly(mt, false)
+
+mt.__index = newcclosure(function(self, idx)
+    if not checkcaller() and Config.Combat.SilentAim and idx == "Hit" then
+        local target = GetClosestPlayer()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            return target.Character.Head.CFrame
+        end
+    end
+    return oldIndex(self, idx)
+end)
+setreadonly(mt, true)
+
+-- ESP Container
+local EspCache = {}
+
+local function CreateESP(player)
+    local box = Drawing.new("Square")
+    box.Visible = false
+    box.Color = Color3.fromRGB(0, 255, 128)
+    box.Thickness = 1
+    box.Filled = false
+
+    local name = Drawing.new("Text")
+    name.Visible = false
+    name.Center = true
+    name.Size = 13
+    name.Color = Color3.fromRGB(255, 255, 255)
+
+    EspCache[player] = {Box = box, Name = name}
+end
+
+local function RemoveESP(player)
+    if EspCache[player] then
+        EspCache[player].Box:Remove()
+        EspCache[player].Name:Remove()
+        EspCache[player].Supplier = nil
+        EspCache[player] = nil
+    end
+end
+
+Players.PlayerRemoving:Connect(RemoveESP)
+for _, p in ipairs(Players:GetPlayers()) do
+    if p ~= LocalPlayer then CreateESP(p) end
+end
+Players.PlayerAdded:Connect(CreateESP)
+
+RunService.RenderStepped:Connect(function()
+    FOVCircle.Position = UserInputService:GetMouseLocation()
+    FOVCircle.Radius = Config.Aimbot.FOV
+    FOVCircle.Visible = Config.Aimbot.Enabled
+
+    for player, cache in pairs(EspCache) do
+        local char = player.Character
+        if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") and char.Humanoid.Health > 0 then
+            local hrp = char.HumanoidRootPart
+            local vector, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+            
+            if onScreen and Config.Visuals.BoxESP then
+                local headPos = Camera:WorldToViewportPoint(char.Head.Position + Vector3.new(0, 0.5, 0))
+                local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                local height = math.abs(headPos.Y - legPos.Y)
+                local width = height / 2
+
+                cache.Box.Size = Vector2.new(width, height)
+                cache.Box.Position = Vector2.new(vector.X - width / 2, vector.Y - height / 2)
+                cache.Box.Visible = true
+
+                cache.Name.Text = player.Name
+                cache.Name.Position = Vector2.new(vector.X, (vector.Y - height / 2) - 16)
+                cache.Name.Visible = Config.Visuals.NameESP
+            else
+                cache.Box.Visible = false
+                cache.Name.Visible = false
+            end
+        else
+            cache.Box.Visible = false
+            cache.Name.Visible = false
+        end
+    end
+end)
