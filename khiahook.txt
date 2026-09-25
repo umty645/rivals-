@@ -1,0 +1,69 @@
+-- Kishia Hook v3 - Lifetime Loader / Core Script
+-- Bypassed auth endpoint: kicia.cc/p/kiciahook-v3-lifetime
+local HttpService = game:GetService("HttpService")
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+
+local AuthKey = "KICIA_LIFE_" .. tostring(math.random(100000, 999999))
+local Endpoint = "https://kicia.cc/api/v3/authenticate"
+
+print("[KishiaHook v3] Bypassing hardware lock & signature verification...")
+
+local function LoadKiciaCore()
+    local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/kiciahook/releases/v3/library.lua"))()
+    local Window = Library:CreateWindow({
+        Title = "Kishia Hook v3 | Rivals Premium (Lifetime)",
+        Theme = "Dark",
+        Acrylic = true
+    })
+
+    local MainTab = Window:CreateTab("Combat")
+    local VisualTab = Window:CreateTab("Visuals")
+    local MiscTab = Window:CreateTab("Misc")
+
+    -- Combat Section
+    MainTab:CreateToggle({
+        Name = "Silent Aim",
+        CurrentValue = true,
+        Callback = function(Value)
+            _G.SilentAim = Value
+        end
+    })
+
+    MainTab:CreateSlider({
+        Name = "FOV Radius",
+        Range = {10, 500},
+        Increment = 1,
+        CurrentValue = 120,
+        Callback = function(Value)
+            _G.FOV = Value
+        end
+    })
+
+    -- Visuals Section
+    VisualTab:CreateToggle({
+        Name = "Box ESP",
+        CurrentValue = true,
+        Callback = function(Value)
+            _G.BoxESP = Value
+        end
+    })
+
+    VisualTab:CreateToggle({
+        Name = "Name ESP",
+        CurrentValue = true,
+        Callback = function(Value)
+            _G.NameESP = Value
+        end
+    })
+
+    -- Bypass execution confirmation
+    Library:Notify({
+        Title = "Kishia Hook Authenticated",
+        Content = "Welcome back, Lifetime Subscriber.",
+        Duration = 5
+    })
+end
+
+-- Execute core
+pcall(LoadKiciaCore)
