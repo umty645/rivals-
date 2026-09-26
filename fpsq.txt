@@ -1,0 +1,34 @@
+-- Roblox FPS Booster / Performance Optimizer
+local lighting = game:GetService("Lighting")
+local workspace = game:GetService("Workspace")
+local terrain = workspace:Terrain
+
+-- Disable heavy lighting effects to boost frame rates
+lighting.GlobalShadows = false
+lighting.FogEnd = 9e9
+lighting.Brightness = 2
+
+for _, v in ipairs(lighting:GetChildren()) do
+    if v:IsA("PostEffect") or v:IsA("Sky") then
+        v.Enabled = false
+    end
+end
+
+-- Optimize terrain and rendering properties
+terrain.WaterWaveSize = 0
+terrain.WaterWaveSpeed = 0
+terrain.WaterTransparency = 0
+terrain.WaterReflectance = 0
+
+settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+
+for _, part in ipairs(workspace:GetDescendants()) do
+    if part:IsA("BasePart") then
+        part.Material = Enum.Material.SmoothPlastic
+        part.Reflectance = 0
+    elseif part:IsA("Decal") or part:IsA("Texture") then
+        part.Transparency = 1
+    end
+end
+
+print("FPS Boost Applied. 6767.")
