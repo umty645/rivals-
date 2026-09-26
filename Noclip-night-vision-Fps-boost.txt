@@ -1,0 +1,332 @@
+local Players = game:GetService("Players") 
+local UserInputService = game:GetService("UserInputService")
+local Stats = game:GetService("Stats")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+
+local LocalPlayer = Players.LocalPlayer
+
+local highlightEnabled = false
+local nightVisionEnabled = false
+local fpsBoostEnabled = false
+local noclipEnabled = false
+
+local originalMaterials = {}
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "HighlightMenu"
+gui.ResetOnSpawn = false
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,220,0,340)
+frame.Position = UDim2.new(0,50,0,200)
+frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,30)
+title.BackgroundColor3 = Color3.fromRGB(40,40,40)
+title.Text = "Player Menu"
+title.TextColor3 = Color3.new(1,1,1)
+title.Parent = frame
+
+-- Highlight button
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(1,-20,0,40)
+button.Position = UDim2.new(0,10,0,40)
+button.Text = "Highlight Everybody: OFF"
+button.BackgroundColor3 = Color3.fromRGB(60,60,60)
+button.TextColor3 = Color3.new(1,1,1)
+button.Parent = frame
+
+-- Night vision
+local nightButton = Instance.new("TextButton")
+nightButton.Size = UDim2.new(1,-20,0,40)
+nightButton.Position = UDim2.new(0,10,0,90)
+nightButton.Text = "Night Vision: OFF"
+nightButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+nightButton.TextColor3 = Color3.new(1,1,1)
+nightButton.Parent = frame
+
+-- Reset
+local resetButton = Instance.new("TextButton")
+resetButton.Size = UDim2.new(1,-20,0,40)
+resetButton.Position = UDim2.new(0,10,0,140)
+resetButton.Text = "Reset Character"
+resetButton.BackgroundColor3 = Color3.fromRGB(120,40,40)
+resetButton.TextColor3 = Color3.new(1,1,1)
+resetButton.Parent = frame
+
+-- FPS Boost
+local fpsButton = Instance.new("TextButton")
+fpsButton.Size = UDim2.new(1,-20,0,40)
+fpsButton.Position = UDim2.new(0,10,0,190)
+fpsButton.Text = "FPS Boost: OFF"
+fpsButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+fpsButton.TextColor3 = Color3.new(1,1,1)
+fpsButton.Parent = frame
+
+-- Noclip
+local noclipButton = Instance.new("TextButton")
+noclipButton.Size = UDim2.new(1,-20,0,40)
+noclipButton.Position = UDim2.new(0,10,0,240)
+noclipButton.Text = "Noclip: OFF"
+noclipButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
+noclipButton.TextColor3 = Color3.new(1,1,1)
+noclipButton.Parent = frame
+
+-- FPS / Ping labels
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(1,-20,0,20)
+fpsLabel.Position = UDim2.new(0,10,1,-45)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.TextColor3 = Color3.new(1,1,1)
+fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+fpsLabel.Parent = frame
+
+local pingLabel = Instance.new("TextLabel")
+pingLabel.Size = UDim2.new(1,-20,0,20)
+pingLabel.Position = UDim2.new(0,10,1,-25)
+pingLabel.BackgroundTransparency = 1
+pingLabel.TextColor3 = Color3.new(1,1,1)
+pingLabel.TextXAlignment = Enum.TextXAlignment.Left
+pingLabel.Parent = frame
+
+-- HEALTH BAR
+local function createHealthBar(character)
+
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local head = character:FindFirstChild("Head")
+	if not humanoid or not head then return end
+
+	if head:FindFirstChild("HealthBar") then return end
+
+	local gui = Instance.new("BillboardGui")
+	gui.Name = "HealthBar"
+	gui.Size = UDim2.new(4,0,1,0)
+	gui.StudsOffset = Vector3.new(0,3,0)
+	gui.AlwaysOnTop = true
+	gui.MaxDistance = 10000
+	gui.Parent = head
+
+	local bg = Instance.new("Frame")
+	bg.Size = UDim2.new(1,0,0.4,0)
+	bg.BackgroundColor3 = Color3.fromRGB(40,40,40)
+	bg.BorderSizePixel = 0
+	bg.Parent = gui
+
+	local bar = Instance.new("Frame")
+	bar.Size = UDim2.new(1,0,1,0)
+	bar.BorderSizePixel = 0
+	bar.Parent = bg
+
+	local function updateHealth()
+		local hp = humanoid.Health / humanoid.MaxHealth
+		bar.Size = UDim2.new(hp,0,1,0)
+
+		if hp > 0.6 then
+			bar.BackgroundColor3 = Color3.fromRGB(0,255,0)
+		elseif hp > 0.3 then
+			bar.BackgroundColor3 = Color3.fromRGB(255,200,0)
+		else
+			bar.BackgroundColor3 = Color3.fromRGB(255,0,0)
+		end
+	end
+
+	updateHealth()
+	humanoid.HealthChanged:Connect(updateHealth)
+
+end
+
+-- Highlight
+local function addHighlight(character)
+
+	if character:FindFirstChildOfClass("Highlight") then return end
+
+	local h = Instance.new("Highlight")
+	h.FillColor = Color3.fromRGB(255,0,0)
+	h.OutlineColor = Color3.fromRGB(255,0,0)
+	h.FillTransparency = 0.5
+	h.Parent = character
+
+	createHealthBar(character)
+
+end
+
+local function removeHighlight(character)
+
+	local h = character:FindFirstChildOfClass("Highlight")
+	if h then h:Destroy() end
+
+	local head = character:FindFirstChild("Head")
+	if head then
+		local hb = head:FindFirstChild("HealthBar")
+		if hb then hb:Destroy() end
+	end
+
+end
+
+-- Setup players
+local function setupPlayer(player)
+
+	player.CharacterAdded:Connect(function(char)
+		if highlightEnabled and player ~= LocalPlayer then
+			task.wait(1)
+			addHighlight(char)
+		end
+	end)
+
+end
+
+for _,p in pairs(Players:GetPlayers()) do
+	setupPlayer(p)
+end
+
+Players.PlayerAdded:Connect(setupPlayer)
+
+-- Highlight toggle
+button.MouseButton1Click:Connect(function()
+
+	highlightEnabled = not highlightEnabled
+	button.Text = highlightEnabled and "Highlight Everybody: ON" or "Highlight Everybody: OFF"
+
+	for _,player in pairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer and player.Character then
+			if highlightEnabled then
+				addHighlight(player.Character)
+			else
+				removeHighlight(player.Character)
+			end
+		end
+	end
+
+end)
+
+-- NIGHT VISION
+local originalBrightness = Lighting.Brightness
+local originalAmbient = Lighting.Ambient
+local originalOutdoor = Lighting.OutdoorAmbient
+
+nightButton.MouseButton1Click:Connect(function()
+
+	nightVisionEnabled = not nightVisionEnabled
+
+	if nightVisionEnabled then
+		Lighting.Brightness = 5
+		Lighting.Ambient = Color3.fromRGB(180,255,180)
+		Lighting.OutdoorAmbient = Color3.fromRGB(180,255,180)
+		nightButton.Text = "Night Vision: ON"
+	else
+		Lighting.Brightness = originalBrightness
+		Lighting.Ambient = originalAmbient
+		Lighting.OutdoorAmbient = originalOutdoor
+		nightButton.Text = "Night Vision: OFF"
+	end
+
+end)
+
+-- FPS BOOST
+fpsButton.MouseButton1Click:Connect(function()
+
+	fpsBoostEnabled = not fpsBoostEnabled
+
+	if fpsBoostEnabled then
+
+		fpsButton.Text = "FPS Boost: ON"
+		Lighting.GlobalShadows = false
+
+		for _,v in pairs(workspace:GetDescendants()) do
+			if v:IsA("BasePart") then
+				originalMaterials[v] = v.Material
+				v.Material = Enum.Material.Plastic
+			end
+		end
+
+	else
+
+		fpsButton.Text = "FPS Boost: OFF"
+		Lighting.GlobalShadows = true
+
+		for part,mat in pairs(originalMaterials) do
+			if part and part.Parent then
+				part.Material = mat
+			end
+		end
+
+		originalMaterials = {}
+
+	end
+
+end)
+
+-- NOCLIP
+noclipButton.MouseButton1Click:Connect(function()
+
+	noclipEnabled = not noclipEnabled
+	noclipButton.Text = noclipEnabled and "Noclip: ON" or "Noclip: OFF"
+
+end)
+
+RunService.Stepped:Connect(function()
+
+	if noclipEnabled and LocalPlayer.Character then
+
+		for _,part in ipairs(LocalPlayer.Character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
+		end
+
+	end
+
+end)
+
+-- RESET
+resetButton.MouseButton1Click:Connect(function()
+
+	local char = LocalPlayer.Character
+	if char then
+		local hum = char:FindFirstChildOfClass("Humanoid")
+		if hum then hum.Health = 0 end
+	end
+
+end)
+
+-- Toggle menu
+UserInputService.InputBegan:Connect(function(input,gp)
+
+	if gp then return end
+
+	if input.KeyCode == Enum.KeyCode.Insert then
+		frame.Visible = not frame.Visible
+	end
+
+end)
+
+-- FPS counter
+local fps = 0
+local last = tick()
+
+RunService.RenderStepped:Connect(function()
+
+	fps += 1
+
+	if tick() - last >= 1 then
+		fpsLabel.Text = "FPS: "..fps
+		fps = 0
+		last = tick()
+	end
+
+end)
+
+-- Ping
+RunService.Heartbeat:Connect(function()
+
+	local ping = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+	pingLabel.Text = "Ping: "..math.floor(ping).." ms"
+
+end)
