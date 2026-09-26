@@ -1,1211 +1,241 @@
-
-repeat task.wait() until game:IsLoaded()
-
-local _repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
-local Library      = loadstring(game:HttpGet(_repo .. 'Library.lua'))()
-local ThemeManager = loadstring(game:HttpGet(_repo .. 'addons/ThemeManager.lua'))()
-local SaveManager  = loadstring(game:HttpGet(_repo .. 'addons/SaveManager.lua'))()
-
+------------------------------------------------
+-- UI INTRO PREMIUM (By Pedro_7p89)
+------------------------------------------------
 local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+
+------------------------------------------------
+-- BLUR
+------------------------------------------------
+local blur = Instance.new("BlurEffect")
+blur.Size = 0
+blur.Parent = Lighting
+
+------------------------------------------------
+-- GUI
+------------------------------------------------
+local gui = Instance.new("ScreenGui")
+gui.Name = "IntroPedro"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Parent = gui
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.Position = UDim2.new(0.5, 0, 0.5, 0)
+frame.Size = UDim2.new(0, 200, 0, 60) -- começa menor
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+frame.BackgroundTransparency = 1
+frame.BorderSizePixel = 0
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 16)
+corner.Parent = frame
+
+local text = Instance.new("TextLabel")
+text.Parent = frame
+text.Size = UDim2.new(1, 0, 1, 0)
+text.BackgroundTransparency = 1
+text.Text = "By Pedro_7p89"
+text.Font = Enum.Font.GothamBold
+text.TextSize = 20
+text.TextColor3 = Color3.fromRGB(255, 255, 255)
+text.TextTransparency = 1
+
+------------------------------------------------
+-- SOM
+------------------------------------------------
+local sound = Instance.new("Sound")
+sound.SoundId = "rbxassetid://9118828564" -- som suave
+sound.Volume = 0.6
+sound.Parent = frame
+
+------------------------------------------------
+-- TWEENS
+------------------------------------------------
+local zoomIn = TweenService:Create(
+	frame,
+	TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+	{
+		Size = UDim2.new(0, 260, 0, 80),
+		BackgroundTransparency = 0.15
+	}
+)
+
+local textIn = TweenService:Create(
+	text,
+	TweenInfo.new(0.5),
+	{TextTransparency = 0}
+)
+
+local blurIn = TweenService:Create(
+	blur,
+	TweenInfo.new(0.5),
+	{Size = 12}
+)
+
+local zoomOut = TweenService:Create(
+	frame,
+	TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+	{
+		Size = UDim2.new(0, 200, 0, 60),
+		BackgroundTransparency = 1
+	}
+)
+
+local textOut = TweenService:Create(
+	text,
+	TweenInfo.new(0.5),
+	{TextTransparency = 1}
+)
+
+local blurOut = TweenService:Create(
+	blur,
+	TweenInfo.new(0.5),
+	{Size = 0}
+)
+
+------------------------------------------------
+-- EXECUÇÃO
+------------------------------------------------
+sound:Play()
+zoomIn:Play()
+textIn:Play()
+blurIn:Play()
+
+task.delay(2, function()
+	zoomOut:Play()
+	textOut:Play()
+	blurOut:Play()
+
+	task.delay(0.6, function()
+		gui:Destroy()
+		blur:Destroy()
+	end)
+end)--[[
+	WARNING: Heads up! This script has not been verified by ScriptBlox. Use at your own risk!
+]]
+--// SERVIÇOS
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
-local ContentProvider = game:GetService("ContentProvider")
-local RankIcons = {
-	["Unranked"] = "rbxassetid://111599878354131",
-	["Bronze 1"] = "rbxassetid://106623367501544",
-	["Bronze 2"] = "rbxassetid://131795064007344",
-	["Bronze 3"] = "rbxassetid://73543520622815",
-	["Silver 1"] = "rbxassetid://80716950169934",
-	["Silver 2"] = "rbxassetid://136100661820261",
-	["Silver 3"] = "rbxassetid://107898816876115",
-	["Gold 1"] = "rbxassetid://134520747948636",
-	["Gold 2"] = "rbxassetid://114166096331502",
-	["Gold 3"] = "rbxassetid://90039594400813",
-	["Platinum 1"] = "rbxassetid://133903971285645",
-	["Platinum 2"] = "rbxassetid://82834564754747",
-	["Platinum 3"] = "rbxassetid://73345783863790",
-	["Diamond 1"] = "rbxassetid://113997689031026",
-	["Diamond 2"] = "rbxassetid://88059506918419",
-	["Diamond 3"] = "rbxassetid://112183171942172",
-	["Onyx 1"] = "rbxassetid://104871954739030",
-	["Onyx 2"] = "rbxassetid://109012386782238",
-	["Onyx 3"] = "rbxassetid://127982903682334",
-	["Nemesis"] = "rbxassetid://116941545385923",
-	["Archnemesis"] = "rbxassetid://133793956251748",
-}
-local Config = getgenv().Config
-local LP = Players.LocalPlayer
-local RealName = LP.Name
-local RealDisplayName = LP.DisplayName
-local TargetHeadshot = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(Players.LocalPlayer.UserId) .. "&width=420&height=420&format=png"
+local Stats = game:GetService("Stats")
 
-local NewHeadshot = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(Config.AppearanceUserId) .. "&width=420&height=420&format=png"
-local streakNum = tonumber((Config.Streak:gsub(",", ""))) or 0
-local showStreak = streakNum > 0
-local keys = Config.Keys
-local W = "Workspace." .. RealName
-local MyRealLevel = tostring(LP:GetAttribute("Level"))
-local MyRealStreak = ""
-local connected = {}
-LP:SetAttribute("StatisticDuelsWinStreak", tonumber(Config.Streak))
-LP:WaitForChild("CustomLeaderstats"):FindFirstChild("Win Streak").Value = tonumber(Config.Streak)
-local previewModel = nil
+local player = Players.LocalPlayer
+local desempenhoAtivo = true
 
-if Config.AppearanceUserId ~= 0 then
-	task.spawn(function()
-		local ok, desc = pcall(Players.GetHumanoidDescriptionFromUserIdAsync, Players, Config.AppearanceUserId)
-		if not ok then warn("[Appearance] Failed:", desc) return end
-		local ok2, model = pcall(Players.CreateHumanoidModelFromDescriptionAsync, Players, desc, Enum.HumanoidRigType.R15)
-		if not ok2 then warn("[Appearance] Failed:", model) return end
-
-		model.Name = "AppearancePreview"
-
-		model.Parent = game:GetService("ReplicatedStorage")
-		previewModel = model
-
-		if LP.Character then applyAppearance(LP.Character) end
-	end)
-end
-
-local function findMatchingAttachment(model, name)
-	for _, child in ipairs(model:GetChildren()) do
-		if child:IsA("Accessory") then continue end
-		for _, att in ipairs(child:GetChildren()) do
-			if att:IsA("Attachment") and att.Name == name then return att end
-		end
-		for _, grandchild in ipairs(child:GetChildren()) do
-			if not grandchild:IsA("Accessory") then
-				for _, att in ipairs(grandchild:GetChildren()) do
-					if att:IsA("Attachment") and att.Name == name then return att end
-				end
-			end
-		end
+------------------------------------------------
+-- FUNÇÃO OTIMIZAR OBJETO
+------------------------------------------------
+local function otimizarObjeto(obj)
+	if obj:IsA("BasePart") then
+		obj.Material = Enum.Material.Plastic
+		obj.Reflectance = 0
+		obj.CastShadow = false
+	elseif obj:IsA("Decal") or obj:IsA("Texture") then
+		pcall(function()
+			obj:Destroy()
+		end)
+	elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") then
+		obj.Enabled = false
 	end
 end
-local function weldAccessory(character, acc)
-	acc.Parent = character
-	local handle = acc:FindFirstChild("Handle")
-	if not handle then warn("[Appearance] Accessory has no Handle:", acc.Name) return end
 
-	for _, child in ipairs(handle:GetChildren()) do
-		if child:IsA("Weld") or child:IsA("JointInstance") or child.Name == "AccessoryWeld" then
-			child:Destroy()
-		end
+------------------------------------------------
+-- APLICAR EM TODO MAPA
+------------------------------------------------
+local function aplicarNoMapa()
+	for _, obj in pairs(workspace:GetDescendants()) do
+		otimizarObjeto(obj)
 	end
-	handle.Anchored = false
 
-	local accAttachment = handle:FindFirstChildOfClass("Attachment")
-	if accAttachment then
-		local charAttachment = findMatchingAttachment(character, accAttachment.Name)
-		if charAttachment then
-			local weld = Instance.new("Weld")
-			weld.Name = "AccessoryWeld"
-			weld.Part0 = charAttachment.Parent
-			weld.Part1 = handle
-			weld.C0 = charAttachment.CFrame
-			weld.C1 = accAttachment.CFrame
-			weld.Parent = charAttachment.Parent
-		else
-			warn("[Appearance] No matching attachment for:", acc.Name, "->", accAttachment.Name)
-		end
-	else
-		local head = character:FindFirstChild("Head")
-		if head then
-			local weld = Instance.new("Weld")
-			weld.Name = "AccessoryWeld"
-			weld.Part0 = head
-			weld.Part1 = handle
-			weld.C0 = CFrame.new(0, 0.5, 0)
-			weld.C1 = acc.AttachmentPoint
-			weld.Parent = head
-		end
+	local terrain = workspace:FindFirstChildOfClass("Terrain")
+	if terrain then
+		terrain.WaterWaveSize = 0
+		terrain.WaterWaveSpeed = 0
+		terrain.WaterReflectance = 0
+		terrain.WaterTransparency = 1
 	end
 end
-local function stripCharacter(character)
-	for _, v in ipairs(character:GetChildren()) do
-		if v:IsA("Accessory") or v:IsA("Shirt") or v:IsA("Pants")
-			or v:IsA("BodyColors") or v:IsA("ShirtGraphic") then
-			v:Destroy()
-		end
+
+------------------------------------------------
+-- ATIVAR MODO DESEMPENHO (AUTO)
+------------------------------------------------
+settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+
+Lighting.GlobalShadows = false
+Lighting.Brightness = 1
+Lighting.EnvironmentDiffuseScale = 0
+Lighting.EnvironmentSpecularScale = 0
+Lighting.FogEnd = 9e9
+
+for _, v in pairs(Lighting:GetChildren()) do
+	if v:IsA("PostEffect") then
+		v.Enabled = false
 	end
 end
-function applyAppearance(character)
-	if not previewModel then return end
 
-	local template = previewModel:Clone()
+-- Primeira aplicação
+aplicarNoMapa()
 
-	local upperTorso = character:WaitForChild("UpperTorso")
-	character:WaitForChild("Humanoid")
-	character:WaitForChild("HumanoidRootPart")
-
-	task.wait(0.1)
-	stripCharacter(character)
-
+------------------------------------------------
+-- OBJETOS NOVOS
+------------------------------------------------
+workspace.DescendantAdded:Connect(function(obj)
 	task.wait()
-	stripCharacter(character)
-
-	local localHead = character:WaitForChild("Head")
-	local previewHead = template:FindFirstChild("Head")
-	if previewHead then
-		local newHead = previewHead:Clone() 
-		newHead.Name = "Head"
-		newHead.CFrame = localHead.CFrame
-
-		for _, child in ipairs(newHead:GetChildren()) do
-			if child:IsA("Motor6D") or child:IsA("Weld") or child:IsA("JointInstance") then
-				child:Destroy()
-			end
-		end
-
-		local oldNeck = localHead:FindFirstChildOfClass("Motor6D")
-		if oldNeck then
-			oldNeck.Part1 = newHead
-			oldNeck.Parent = newHead 
-		else
-			local upperNeck = upperTorso:FindFirstChild("Neck") or upperTorso:FindFirstChildOfClass("Motor6D")
-			if upperNeck then
-				upperNeck.Part1 = newHead
-			end
-		end
-
-		localHead:Destroy()
-		newHead.Parent = character
-	end
-
-	for _, v in ipairs(template:GetChildren()) do
-		if v:IsA("Shirt") or v:IsA("Pants")
-			or v:IsA("BodyColors") or v:IsA("ShirtGraphic") then
-			v.Parent = character 
-		end
-	end
-
-	for _, v in ipairs(template:GetChildren()) do
-		if v:IsA("Accessory") then
-			
-			weldAccessory(character, v) 
-		end
-	end
-
-	template:Destroy()
-
-	local ourNames = {}
-	for _, v in ipairs(previewModel:GetChildren()) do ourNames[v.Name] = true end
-
-	local conn
-	conn = character.ChildAdded:Connect(function(child)
-		if child:IsA("Accessory") or child:IsA("Shirt") or child:IsA("Pants")
-			or child:IsA("BodyColors") or child:IsA("ShirtGraphic") then
-			if not ourNames[child.Name] then child:Destroy() end
-		end
-	end)
-
-	character.AncestryChanged:Connect(function()
-		if not character:IsDescendantOf(game) then
-			conn:Disconnect()
-		end
-	end)
-end
-local function ReadRealValues()
-	local char = LP.Character
-	if not char then return end
-	local hrp = char:FindFirstChild("HumanoidRootPart")
-	if not hrp then return end
-	local gui = hrp:FindFirstChild("NametagGui")
-	if not gui then return end
-	if MyRealLevel == "" then
-		local lbl = gui:FindFirstChild("Elements")
-			and gui.Elements:FindFirstChild("Data")
-			and gui.Elements.Data:FindFirstChild("Level")
-			and gui.Elements.Data.Level:FindFirstChild("Title")
-		if lbl and lbl.Text ~= "" then
-			MyRealLevel = lbl.Text
-		end
-	end
-end
-local function TrySpoofImage(img)
-	if not img or not img:IsA("ImageLabel") then return end
-	
-	if (img.Image == TargetHeadshot ) then
-		img.Image = NewHeadshot
-	end
-end
-local function HookObject(obj)
-	if connected[obj] then return end
-
-	if obj:IsA("ImageLabel") then
-		TrySpoofImage(obj)
-		connected[obj] = obj:GetPropertyChangedSignal("Image"):Connect(function()
-			TrySpoofImage(obj)
-		end)
-	end
-
-	obj.Destroying:Connect(function()
-		if connected[obj] then
-			connected[obj]:Disconnect()
-			connected[obj] = nil
-		end
-	end)
-end
-local function GetObject(path)
-	local parts = string.split(path, ".")
-	local ok, result = pcall(function()
-		local node = (parts[1] == "Workspace") and workspace or game:GetService(parts[1])
-		for i = 2, #parts do
-			node = node:FindFirstChild(parts[i])
-			if not node then return nil end
-		end
-		return node
-	end)
-	return ok and result or nil
-end
-
-local namePat       = RealName:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%1")
-local displayPat    = RealDisplayName:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%1")
-local _sameNameDisplay = (RealName == RealDisplayName) 
-
-local StatSpoof = {
-	Wins = function(lbl) lbl.Text = Config.Wins end,
-	WinPercent = function(lbl) lbl.Text = Config.WinPercent end,
-}
-local function TrySpoofLabel(lbl)
-	if not lbl or not lbl:IsA("TextLabel") then return end
-
-	local statFn = StatSpoof[lbl.Name]
-	if statFn then statFn(lbl) return end
-
-	local txt = lbl.Text
-	if txt == "" then return end
-
-	local newTxt = txt
-	if _sameNameDisplay then
-		
-		newTxt = newTxt:gsub("@" .. namePat, Config.Username)
-		newTxt = newTxt:gsub(namePat, Config.DisplayName)
-	else
-		
-		newTxt = newTxt:gsub("@" .. namePat, Config.Username)
-		newTxt = newTxt:gsub(displayPat, Config.DisplayName)
-	end
-	if newTxt ~= txt then lbl.Text = newTxt return end
-
-	if MyRealLevel ~= "" and txt == MyRealLevel then
-		lbl.Text = Config.Level lbl.Visible = true return
-	end
-	if MyRealStreak ~= "" and txt == MyRealStreak then
-		lbl.Text = Config.Streak lbl.Visible = showStreak return
-	end
-end
-local function TrySpoofContainer(obj)
-	if not (obj:IsA("Frame") or obj:IsA("CanvasGroup")) then return end
-	if obj.Name == "Streak" then
-		local valLbl = obj:FindFirstChild("Value")
-		if valLbl and valLbl:IsA("TextLabel") then
-			valLbl.Text = Config.Streak
-			valLbl.Visible = showStreak
-		end
-		obj.Visible = showStreak
-	elseif obj.Name == "Level" then
-		local valLbl = obj:FindFirstChild("Value") or obj:FindFirstChild("Title")
-		if valLbl and valLbl:IsA("TextLabel") then
-			if MyRealLevel == "" and valLbl.Text ~= "" and valLbl.Text ~= Config.Level then
-				MyRealLevel = valLbl.Text
-			end
-			valLbl.Text = Config.Level
-			valLbl.Visible = true
-		end
-		obj.Visible = not showStreak
-	end
-end
-local function HookLabel(lbl)
-	if connected[lbl] then return end
-	TrySpoofLabel(lbl)
-	connected[lbl] = lbl:GetPropertyChangedSignal("Text"):Connect(function()
-		TrySpoofLabel(lbl)
-	end)
-	lbl.Destroying:Connect(function()
-		if connected[lbl] then
-			connected[lbl]:Disconnect()
-			connected[lbl] = nil
-		end
-	end)
-end
-local function ScanDescendants(root)
-	for _, obj in ipairs(root:GetDescendants()) do
-		if connected[obj] then continue end 
-		if obj:IsA("TextLabel") then HookLabel(obj)
-		else TrySpoofContainer(obj) end
-	end
-end
-
-local _cachedCurrencyIcon = nil
-
-local WorkspacePaths = {
-	{ Path = W .. ".HumanoidRootPart.NametagGui.Elements.NameDisplay.Username",    Type = "Username" },
-	{ Path = W .. ".HumanoidRootPart.NametagGui.Elements.NameDisplay.DisplayName", Type = "DisplayName" },
-	{ Path = W .. ".HumanoidRootPart.NametagGui.Elements.Data.Level.Value",         Type = "Level" },
-}
-
-local _cachedWorkspaceLabels = {}
-
-local function ApplyWorkspacePaths()
-	ReadRealValues()
-	for i, entry in ipairs(WorkspacePaths) do
-		
-		if not _cachedWorkspaceLabels[i] or not _cachedWorkspaceLabels[i].Parent then
-			_cachedWorkspaceLabels[i] = GetObject(entry.Path)
-		end
-		local lbl = _cachedWorkspaceLabels[i]
-		if lbl and lbl:IsA("TextLabel") then
-			local goal = Config[entry.Type]
-			if lbl.Text ~= goal then lbl.Text = goal end
-		end
-	end
-	
-	if not _cachedCurrencyIcon or not _cachedCurrencyIcon.Parent then
-		_cachedCurrencyIcon = nil 
-		local pg = LP and LP:FindFirstChild("PlayerGui")
-		local container = pg
-			and pg:FindFirstChild("MainGui")
-			and pg.MainGui:FindFirstChild("MainFrame")
-			and pg.MainGui.MainFrame:FindFirstChild("Lobby")
-			and pg.MainGui.MainFrame.Lobby:FindFirstChild("Currency")
-			and pg.MainGui.MainFrame.Lobby.Currency:FindFirstChild("Container")
-		if container then
-			for _, v in ipairs(container:GetDescendants()) do
-				if v.Name == "Icon" and v:IsA("ImageLabel") and v.Image == "rbxassetid://17860673529" then
-					_cachedCurrencyIcon = v
-					break
-				end
-			end
-		end
-	end
-	if _cachedCurrencyIcon and keys then
-		_cachedCurrencyIcon.Parent.Parent.Title.Text = keys
-	end
-end
-
-local _rankFinalIcon = (Config.CustomRankIcon ~= "") and Config.CustomRankIcon or RankIcons[Config.RankName]
-local _rankFinalName = (Config.CustomRankName ~= "") and Config.CustomRankName or Config.RankName
-
-local _cachedRankChar  = nil
-local _cachedSbRank    = nil
-local _cachedSbIcon    = nil
-local _cachedSbTitle   = nil
-
-local _cachedProfilePage = nil
-local _cachedPRank       = nil
-local _cachedPTitle      = nil
-local _cachedPIcon       = nil
-
-local function ApplyRankSpoof()
-	
-	if not _cachedRankChar or not _cachedRankChar.Parent then
-		_cachedRankChar = workspace:FindFirstChild(LP.Name)
-		_cachedSbRank   = nil
-		_cachedSbIcon   = nil
-		_cachedSbTitle  = nil
-	end
-
-	if _cachedRankChar then
-		if not _cachedSbRank or not _cachedSbRank.Parent then
-			local hrp  = _cachedRankChar:FindFirstChild("HumanoidRootPart")
-			local ntag = hrp and hrp:FindFirstChild("NametagGui")
-			_cachedSbRank  = ntag and ntag:FindFirstChild("Rank", true)
-			_cachedSbIcon  = nil
-			_cachedSbTitle = nil
-		end
-		if _cachedSbRank then
-			_cachedSbRank.Visible = true
-			if not _cachedSbIcon or not _cachedSbIcon.Parent then
-				_cachedSbIcon = _cachedSbRank:FindFirstChild("Icon", true)
-			end
-			if _cachedSbIcon and _rankFinalIcon and _cachedSbIcon.Image ~= _rankFinalIcon then
-				_cachedSbIcon.Image   = _rankFinalIcon
-				_cachedSbIcon.Visible = true
-			end
-			if not _cachedSbTitle or not _cachedSbTitle.Parent then
-				_cachedSbTitle = _cachedSbRank:FindFirstChild("Title", true)
-			end
-			if _cachedSbTitle and _rankFinalName ~= "" and _cachedSbTitle.Text ~= _rankFinalName then
-				_cachedSbTitle.Text = _rankFinalName
-			end
-		end
-	end
-
-	if not _cachedProfilePage or not _cachedProfilePage.Parent then
-		_cachedProfilePage = LP.PlayerGui:FindFirstChild("ViewProfile", true)
-		_cachedPRank       = nil
-		_cachedPTitle      = nil
-		_cachedPIcon       = nil
-	end
-	if _cachedProfilePage then
-		if not _cachedPRank or not _cachedPRank.Parent then
-			_cachedPRank  = _cachedProfilePage:FindFirstChild("Rank", true)
-			_cachedPTitle = nil
-			_cachedPIcon  = nil
-		end
-		if _cachedPRank then
-			_cachedPRank.Visible = true
-			if not _cachedPTitle or not _cachedPTitle.Parent then
-				_cachedPTitle = _cachedPRank:FindFirstChild("Title", true)
-			end
-			if _cachedPTitle and _rankFinalName ~= "" and _cachedPTitle.Text ~= _rankFinalName then
-				_cachedPTitle.Text = _rankFinalName
-			end
-			if not _cachedPIcon or not _cachedPIcon.Parent then
-				local cont = _cachedPRank:FindFirstChild("Container", true)
-				local ri   = cont and cont:FindFirstChild("RankIcon", true)
-				_cachedPIcon = ri and ri:FindFirstChild("Icon")
-			end
-			if _cachedPIcon and _rankFinalIcon and _cachedPIcon.Image ~= _rankFinalIcon then
-				_cachedPIcon.Image   = _rankFinalIcon
-				_cachedPIcon.Visible = true
-			end
-		end
-	end
-end
-local function OnCharacterAdded(char)
-
-	_cachedWorkspaceLabels = {}
-	_cachedRankChar  = nil
-	_cachedSbRank    = nil
-	_cachedSbIcon    = nil
-	_cachedSbTitle   = nil
-	_cachedCurrencyIcon = nil
-
-	task.spawn(function()
-		while not previewModel do task.wait(0.1) end
-		applyAppearance(char)
-	end)
-
-	task.spawn(function()
-		local pg = LP:WaitForChild("PlayerGui", 10)
-		if pg then
-			ScanDescendants(pg)
-		end
-	end)
-
-	task.spawn(function()
-		local hrp = char:WaitForChild("HumanoidRootPart", 10)
-		if not hrp then return end
-
-		local existingGui = hrp:FindFirstChild("NametagGui")
-		if existingGui then ScanDescendants(existingGui) end
-
-		hrp.ChildAdded:Connect(function(child)
-			if child.Name == "NametagGui" then
-				task.wait() 
-				ScanDescendants(child)
-				child.DescendantAdded:Connect(function(obj)
-					if obj:IsA("TextLabel") then HookLabel(obj)
-					else TrySpoofContainer(obj) end
-				end)
-			end
-		end)
-	end)
-end
-ScanDescendants(LP)
-LP.DescendantAdded:Connect(function(obj)
-	if obj:IsA("TextLabel") then HookLabel(obj)
-	else TrySpoofContainer(obj) end
+	otimizarObjeto(obj)
 end)
 
-if LP:FindFirstChild("PlayerGui") then
-	for _, obj in ipairs(LP.PlayerGui:GetDescendants()) do
-		if obj:IsA("ImageLabel") then HookObject(obj) end
-	end
-end
-LP:FindFirstChild("PlayerGui").DescendantAdded:Connect(function(obj)
-	if obj:IsA("ImageLabel") then HookObject(obj) end
-end)
-
-local lbConnected = {}
-
-local function FindRankedLeaderboard()
-	local pg = LP:FindFirstChild("PlayerGui")
-	if not pg then return nil end
-	local target = Config.LeaderboardType or "Ranked"
-	
-	local escaped = target:gsub("[%^%$%(%)%%%.%[%]%*%+%-%?]", "%%%1")
-	for _, child in ipairs(pg:GetChildren()) do
-		local t = child:FindFirstChild("Title")
-		if t and t:IsA("TextLabel") and t.Text:match("^%s*" .. escaped .. "%s*$") then
-			return child
-		end
-	end
-end
-
-local function GetLeaderboardContainer()
-	local lb = FindRankedLeaderboard()
-	if not lb then return nil end
-	local list = lb:FindFirstChild("List")
-	if not list then return nil end
-	return list:FindFirstChild("Container")
-end
-
-local function SpoofLeaderboardSlot(slot)
-	if not Config.LeaderboardTargetRank or Config.LeaderboardTargetRank == "" then return end
-	local left = slot:FindFirstChild("Left")
-	if not left then return end
-
-	local rankLabel = left:FindFirstChild("Rank")
-	if not rankLabel or not rankLabel:IsA("TextLabel") then return end
-	if rankLabel.Text:match("^%s*(.-)%s*$") ~= Config.LeaderboardTargetRank then return end
-
-	local usernameLabel = left:FindFirstChild("Username")
-	if usernameLabel and usernameLabel:IsA("TextLabel") and usernameLabel.Text ~= Config.Username then
-		usernameLabel.Text = Config.Username
-	end
-
-	local displayLabel = left:FindFirstChild("DisplayName")
-	if displayLabel and displayLabel:IsA("TextLabel") and displayLabel.Text ~= Config.DisplayName then
-		displayLabel.Text = Config.DisplayName
-	end
-
-	local headshot = left:FindFirstChild("Headshot")
-	if headshot and headshot:IsA("ImageLabel") and headshot.Image ~= NewHeadshot then
-		headshot.Image = NewHeadshot
-	end
-end
-
-local function HookLeaderboardSlot(slot)
-	if lbConnected[slot] then return end
-	task.wait() 
-
-	SpoofLeaderboardSlot(slot)
-
-	local left = slot:FindFirstChild("Left")
-	if left then
-		local conns = {}
-
-		local rankLabel = left:FindFirstChild("Rank")
-		if rankLabel then
-			table.insert(conns, rankLabel:GetPropertyChangedSignal("Text"):Connect(function()
-				SpoofLeaderboardSlot(slot)
-			end))
-		end
-
-		local usernameLabel = left:FindFirstChild("Username")
-		if usernameLabel then
-			table.insert(conns, usernameLabel:GetPropertyChangedSignal("Text"):Connect(function()
-				SpoofLeaderboardSlot(slot)
-			end))
-		end
-
-		local displayLabel = left:FindFirstChild("DisplayName")
-		if displayLabel then
-			table.insert(conns, displayLabel:GetPropertyChangedSignal("Text"):Connect(function()
-				SpoofLeaderboardSlot(slot)
-			end))
-		end
-
-		local headshot = left:FindFirstChild("Headshot")
-		if headshot then
-			table.insert(conns, headshot:GetPropertyChangedSignal("Image"):Connect(function()
-				SpoofLeaderboardSlot(slot)
-			end))
-		end
-
-		lbConnected[slot] = conns
-	end
-
-	slot.Destroying:Connect(function()
-		if lbConnected[slot] then
-			for _, c in ipairs(lbConnected[slot]) do c:Disconnect() end
-			lbConnected[slot] = nil
-		end
-	end)
-end
-
-local function WatchLeaderboard()
-	if not Config.LeaderboardTargetRank or Config.LeaderboardTargetRank == "" then return end
-	task.spawn(function()
-		local containerConn = nil
-		local lastContainer = nil
-		while true do
-			local container = GetLeaderboardContainer()
-			if container and container ~= lastContainer then
-				
-				for _, slot in ipairs(container:GetChildren()) do
-					HookLeaderboardSlot(slot)
-				end
-				
-				if containerConn then containerConn:Disconnect() end
-				containerConn = container.ChildAdded:Connect(HookLeaderboardSlot)
-				lastContainer = container
-			end
-			
-			if lastContainer then
-				for _, slot in ipairs(lastContainer:GetChildren()) do
-					SpoofLeaderboardSlot(slot)
-				end
-			end
-			task.wait(2)
-		end
-	end)
-end
-
-WatchLeaderboard()
-
-local _CoreGui = game:GetService("CoreGui")
-local _cgFakeIcon = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(Config.AppearanceUserId) .. "&w=150&h=150"
-
-local _cgRobloxGui, _cgClipShield, _cgSettingsShield, _cgMenuContainer, _cgPage, _cgClipper, _cgPageView, _cgInnerFrame, _cgPeopleList = nil
-
-local _cgCurrentRow, _cgNameLabel, _cgDisplayNameLabel, _cgIcon = nil
-
-local function _cgResolvePath()
-	if not _cgRobloxGui      or not _cgRobloxGui.Parent      then _cgRobloxGui      = _CoreGui:FindFirstChild("RobloxGui") end
-	if not _cgRobloxGui then return nil end
-	if not _cgClipShield     or not _cgClipShield.Parent     then _cgClipShield     = _cgRobloxGui:FindFirstChild("SettingsClippingShield") end
-	if not _cgClipShield then return nil end
-	if not _cgSettingsShield or not _cgSettingsShield.Parent then _cgSettingsShield = _cgClipShield:FindFirstChild("SettingsShield") end
-	if not _cgSettingsShield then return nil end
-	if not _cgMenuContainer  or not _cgMenuContainer.Parent  then _cgMenuContainer  = _cgSettingsShield:FindFirstChild("MenuContainer") end
-	if not _cgMenuContainer then return nil end
-	if not _cgPage           or not _cgPage.Parent           then _cgPage           = _cgMenuContainer:FindFirstChild("Page") end
-	if not _cgPage then return nil end
-	if not _cgClipper        or not _cgClipper.Parent        then _cgClipper        = _cgPage:FindFirstChild("PageViewClipper") end
-	if not _cgClipper then return nil end
-	if not _cgPageView       or not _cgPageView.Parent       then _cgPageView       = _cgClipper:FindFirstChild("PageView") end
-	if not _cgPageView then return nil end
-	if not _cgInnerFrame     or not _cgInnerFrame.Parent     then _cgInnerFrame     = _cgPageView:FindFirstChild("PageViewInnerFrame") end
-	if not _cgInnerFrame then return nil end
-
-	if not _cgPeopleList or not _cgPeopleList.Parent then
-		local pPage = _cgInnerFrame:FindFirstChild("peoplepage")
-		_cgPeopleList = pPage and pPage:FindFirstChild("PeopleList", true)
-	end
-
-	return _cgPeopleList
-end
-
-local function ApplyCoreGuiPlayerList()
-	local list = _cgResolvePath()
-	if not list then return end
-
-	if not _cgCurrentRow or not _cgCurrentRow.Parent then
-		_cgCurrentRow, _cgNameLabel, _cgDisplayNameLabel, _cgIcon = nil, nil, nil, nil
-		for _, row in ipairs(list:GetChildren()) do
-			local userLabel = row:FindFirstChild("UserName", true)
-			if userLabel and userLabel:IsA("TextLabel") and (userLabel.Text == RealName or userLabel.Text == "@" .. RealName) then
-				_cgCurrentRow = row
-				_cgNameLabel = userLabel
-				_cgDisplayNameLabel = row:FindFirstChild("DisplayName", true)
-				_cgIcon = row:FindFirstChild("Avatar", true)
-				if _cgIcon and not _cgIcon:IsA("ImageLabel") then
-					_cgIcon = _cgIcon:FindFirstChildOfClass("ImageLabel") or _cgIcon
-				end
-				break
-			end
-		end
-	end
-
-	if _cgNameLabel and _cgNameLabel.Text ~= Config.Username then
-		_cgNameLabel.Text = Config.Username
-	end
-	if _cgDisplayNameLabel and _cgDisplayNameLabel.Text ~= Config.DisplayName then
-		_cgDisplayNameLabel.Text = Config.DisplayName
-	end
-	if _cgIcon and _cgIcon:IsA("ImageLabel") and _cgIcon.Image ~= _cgFakeIcon then
-		_cgIcon.Image = _cgFakeIcon
-	end
-end
-
-if LP.Character then OnCharacterAdded(LP.Character) end
-LP.CharacterAdded:Connect(OnCharacterAdded)
-RunService.RenderStepped:Connect(ApplyRankSpoof)
-RunService.RenderStepped:Connect(ApplyWorkspacePaths)
-RunService.RenderStepped:Connect(ApplyCoreGuiPlayerList)
-
-local function deepFind(root, ...)
-	local cur = root
-	for _, name in ipairs({...}) do
-		cur = cur:FindFirstChild(name)
-		if not cur then return nil end
-	end
-	return cur
-end
-
-local _robuxPriceTarget = '<font family="rbxasset://LuaPackages/Packages/_Index/BuilderIcons/BuilderIcons/BuilderIcons.json" weight="400">robux</font> ' .. Config.Robux
-
-local _rbxSafeArea   = nil
-local _rbxBuyLabel   = nil
-local _rbxRobuxPrice = nil
-
-local function PatchRobuxUI()
-	
-	if not _rbxSafeArea or not _rbxSafeArea.Parent then
-		_rbxSafeArea   = deepFind(_CoreGui, "FoundationOverlay", "SafeAreaFrame")
-		_rbxBuyLabel   = nil
-		_rbxRobuxPrice = nil
-	end
-	if not _rbxSafeArea then return end
-
-	if not _rbxBuyLabel or not _rbxBuyLabel.Parent then
-		_rbxBuyLabel = deepFind(_rbxSafeArea,
-			"OverlayPortal", "SheetContainer", "Sheet", "Content",
-			"Header", "Content", "SubContent", "ModalHeader", "LeftSide", "RobuxAmount"
-		) or _rbxSafeArea:FindFirstChild("RobuxAmount", true)
-	end
-	if _rbxBuyLabel and _rbxBuyLabel.Text ~= "Buy Item" then
-		_rbxBuyLabel.Text = "Buy Item"
-	end
-
-	local upsellSuggestions = deepFind(_rbxSafeArea,
-		"OverlayPortal", "SheetContainer", "Sheet", "Content", "Content",
-		"ScrollingFrame", "ScrollingFrame",
-		"SheetContentContainer", "UpsellSuggestions"
-	) or _rbxSafeArea:FindFirstChild("UpsellSuggestions", true)
-	if upsellSuggestions then
-		upsellSuggestions:Destroy()
-	end
-
-	if not _rbxRobuxPrice or not _rbxRobuxPrice.Parent then
-		_rbxRobuxPrice = deepFind(_rbxSafeArea,
-			"OverlayPortal", "SheetContainer", "Sheet", "Content",
-			"Header", "Content", "SubContent", "ModalHeader", "RightSide", "RobuxPrice"
-		) or _rbxSafeArea:FindFirstChild("RobuxPrice", true)
-	end
-	if _rbxRobuxPrice and _rbxRobuxPrice.Text ~= _robuxPriceTarget then
-		if _rbxRobuxPrice.RichText then
-			_rbxRobuxPrice.Text = _robuxPriceTarget
-		else
-			_rbxRobuxPrice.Text = "R$ " .. Config.Robux
-		end
-	end
-
-	local disclosureTerms = deepFind(_rbxSafeArea,
-		"OverlayPortal", "SheetContainer", "Sheet", "Content",
-		"Actions", "1", "DisclosureTerms"
-	) or _rbxSafeArea:FindFirstChild("DisclosureTerms", true)
-	if disclosureTerms then
-		disclosureTerms:Destroy()
-	end
-end
-
-do
-  
-    local Window = Library:CreateWindow({
-        Title      = 'FrameScriptV2',
-        Center     = true,
-        AutoShow   = false,
-        TabPadding = 8,
-        MenuFadeTime = 0.2,
-    })
-
-getgenv().MenuMoveEnabled = getgenv().MenuMoveEnabled or false
-
+------------------------------------------------
+-- REAPLICA A CADA 1 MINUTO
+------------------------------------------------
 task.spawn(function()
-    local UIS = game:GetService("UserInputService")
-
-    if not UIS.TouchEnabled then
-        return
-    end
-
-    local CoreGui = game:GetService("CoreGui")
-
-    local gui = CoreGui:FindFirstChild("MobileMenuToggle")
-    if gui then
-        gui:Destroy()
-    end
-
-    gui = Instance.new("ScreenGui")
-    gui.Name = "MobileMenuToggle"
-    gui.ResetOnSpawn = false
-    gui.Parent = CoreGui
-
-    local toggleBtn = Instance.new("TextButton")
-    toggleBtn.Size = UDim2.new(0, 50, 0, 50)
-    toggleBtn.Position = UDim2.new(0, 10, 0, 10)
-    toggleBtn.Text = "toggle"
-    toggleBtn.TextScaled = true
-    toggleBtn.BackgroundTransparency = 0.2
-    toggleBtn.Parent = gui
-
-    toggleBtn.MouseButton1Click:Connect(function()
-        Library:Toggle()
-    end)
-
-    local lockBtn = Instance.new("TextButton")
-    lockBtn.Size = UDim2.new(0, 50, 0, 40)
-    lockBtn.Position = UDim2.new(0, 10, 0, 65)
-    lockBtn.TextScaled = true
-    lockBtn.BackgroundTransparency = 0.2
-    lockBtn.Parent = gui
-
-    local function updateLockText()
-        lockBtn.Text = getgenv().MenuMoveEnabled and "unlocked" or "locked"
-    end
-
-    updateLockText()
-
-    lockBtn.MouseButton1Click:Connect(function()
-        getgenv().MenuMoveEnabled = not getgenv().MenuMoveEnabled
-        updateLockText()
-    end)
-
-    local function getMenu()
-        local cg = game:GetService("CoreGui")
-
-        for _, obj in ipairs(cg:GetChildren()) do
-            if obj:IsA("ScreenGui") then
-                local main = obj:FindFirstChild("MainFrame", true)
-                if main and main:IsA("Frame") then
-                    return main
-                end
-            end
-        end
-    end
-
-    task.spawn(function()
-        local menu
-
-        repeat
-            task.wait(0.25)
-            menu = getMenu()
-        until menu
-
-        local dragging = false
-        local dragStart
-        local startPos
-
-        menu.InputBegan:Connect(function(input)
-            if not getgenv().MenuMoveEnabled then
-                return
-            end
-
-            if input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true
-                dragStart = input.Position
-                startPos = menu.Position
-            end
-        end)
-
-        UIS.InputChanged:Connect(function(input)
-            if not dragging then
-                return
-            end
-
-            if input.UserInputType == Enum.UserInputType.Touch then
-                local delta = input.Position - dragStart
-
-                menu.Position = UDim2.new(
-                    startPos.X.Scale,
-                    startPos.X.Offset + delta.X,
-                    startPos.Y.Scale,
-                    startPos.Y.Offset + delta.Y
-                )
-            end
-        end)
-
-        UIS.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.Touch then
-                dragging = false
-            end
-        end)
-    end)
+	while true do
+		task.wait(60)
+		aplicarNoMapa()
+	end
 end)
 
-    local Tabs = {
-        Spoof            = Window:AddTab('Spoof'),
-        Export           = Window:AddTab('Export'),
-        ['UI Settings']  = Window:AddTab('UI Settings'),
-    }
+------------------------------------------------
+-- GUI FPS + PING (PEQUENO)
+------------------------------------------------
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.ResetOnSpawn = false
 
-    local IdentityGroup    = Tabs.Spoof:AddLeftGroupbox('Identity')
-    local AppearanceGroup  = Tabs.Spoof:AddRightGroupbox('Appearance & Rank')
-    local ExportGroup      = Tabs.Export:AddLeftGroupbox('Export Config')
+local infoFrame = Instance.new("Frame", gui)
+infoFrame.Size = UDim2.new(0, 95, 0, 22)
+infoFrame.Position = UDim2.new(1, -100, 0, 10)
+infoFrame.BackgroundColor3 = Color3.new(0,0,0)
+infoFrame.BackgroundTransparency = 0.4
+infoFrame.BorderSizePixel = 0
 
-    IdentityGroup:AddInput('CfgUsername', {
-        Default = Config.Username or '', Text = 'Username',
-        Numeric = false, Finished = false,
-    })
-    Options.CfgUsername:OnChanged(function()
-        Config.Username = Options.CfgUsername.Value
-    end)
+local infoText = Instance.new("TextLabel", infoFrame)
+infoText.Size = UDim2.new(1,0,1,0)
+infoText.BackgroundTransparency = 1
+infoText.Font = Enum.Font.Gotham
+infoText.TextSize = 11
+infoText.TextColor3 = Color3.fromRGB(0,255,0)
+infoText.Text = "FPS: 0 | MS: 0"
 
-    IdentityGroup:AddInput('CfgDisplayName', {
-        Default = Config.DisplayName or '', Text = 'Display Name',
-        Numeric = false, Finished = false,
-    })
-    Options.CfgDisplayName:OnChanged(function()
-        Config.DisplayName = Options.CfgDisplayName.Value
-    end)
-
-    IdentityGroup:AddInput('CfgLevel', {
-        Default = tostring(Config.Level or ''), Text = 'Level',
-        Numeric = false, Finished = false,
-    })
-    Options.CfgLevel:OnChanged(function()
-        Config.Level = Options.CfgLevel.Value
-    end)
-
-    IdentityGroup:AddInput('CfgStreak', {
-        Default = tostring(Config.Streak or '0'), Text = 'Win Streak',
-        Numeric = false, Finished = false,
-    })
-    Options.CfgStreak:OnChanged(function()
-        local v = Options.CfgStreak.Value
-        Config.Streak = v
-        streakNum  = tonumber((v:gsub(",", ""))) or 0
-        showStreak = streakNum > 0
-        LP:SetAttribute("StatisticDuelsWinStreak", tonumber(v) or 0)
-        local ws = LP:FindFirstChild("CustomLeaderstats")
-                and LP.CustomLeaderstats:FindFirstChild("Win Streak")
-        if ws then ws.Value = tonumber(v) or 0 end
-    end)
-
-    IdentityGroup:AddInput('CfgWins', {
-        Default = tostring(Config.Wins or ''), Text = 'Wins',
-        Numeric = false, Finished = false,
-    })
-    Options.CfgWins:OnChanged(function()
-        Config.Wins = Options.CfgWins.Value
-    end)
-
-    IdentityGroup:AddInput('CfgWinPercent', {
-        Default = tostring(Config.WinPercent or ''), Text = 'Win %',
-        Numeric = false, Finished = false,
-    })
-    Options.CfgWinPercent:OnChanged(function()
-        Config.WinPercent = Options.CfgWinPercent.Value
-    end)
-
-    IdentityGroup:AddInput('CfgRobux', {
-        Default = tostring(Config.Robux or '0'), Text = 'Robux',
-        Numeric = false, Finished = false,
-    })
-    Options.CfgRobux:OnChanged(function()
-        local v = Options.CfgRobux.Value
-        Config.Robux = v
-        _robuxPriceTarget = '<font family="rbxasset://LuaPackages/Packages/_Index/BuilderIcons/BuilderIcons/BuilderIcons.json" weight="400">robux</font> ' .. v
-    end)
-
-    IdentityGroup:AddInput('CfgKeys', {
-        Default = tostring(Config.Keys or ''), Text = 'Keys',
-        Numeric = false, Finished = false,
-    })
-    Options.CfgKeys:OnChanged(function()
-        local v = Options.CfgKeys.Value
-        Config.Keys = v
-        keys = v
-    end)
-
-    AppearanceGroup:AddInput('CfgAppearanceId', {
-        Default    = tostring(Config.AppearanceUserId or 0),
-        Text       = 'Appearance UserId',
-        Numeric    = true,
-        Finished   = true,
-        Tooltip    = 'UserId whose avatar to copy (0 = off)',
-    })
-    Options.CfgAppearanceId:OnChanged(function()
-    local uid = tonumber(Options.CfgAppearanceId.Value) or 0
-    Config.AppearanceUserId = uid
-    NewHeadshot = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. tostring(uid) .. "&width=420&height=420&format=png"
-    _cgFakeIcon = "rbxthumb://type=AvatarHeadShot&id=" .. tostring(uid) .. "&w=150&h=150" 
-
-    if uid ~= 0 then
-        task.spawn(function()
-            local ok, desc = pcall(Players.GetHumanoidDescriptionFromUserIdAsync, Players, uid)
-            if not ok then warn("[Appearance] Failed:", desc) return end
-            
-            local ok2, model = pcall(Players.CreateHumanoidModelFromDescriptionAsync, Players, desc, Enum.HumanoidRigType.R15)
-            if not ok2 then warn("[Appearance] Failed:", model) return end
-
-            model.Name = "AppearancePreview"
-
-            if previewModel then previewModel:Destroy() end
-            
-            model.Parent = game:GetService("ReplicatedStorage")
-            previewModel = model
-
-            if LP.Character then 
-                applyAppearance(LP.Character) 
-            end
-        end)
-    end
-end)
-
-    local RankNames = {}
-    for k in next, RankIcons do RankNames[#RankNames + 1] = k end
-    table.sort(RankNames)
-
-    AppearanceGroup:AddDropdown('CfgRankName', {
-        Values  = RankNames,
-        Default = Config.RankName or RankNames[1],
-        Multi   = false,
-        Text    = 'Rank',
-    })
-    Options.CfgRankName:OnChanged(function()
-        local v = Options.CfgRankName.Value
-        Config.RankName  = v
-        _rankFinalIcon = (Config.CustomRankIcon ~= "") and Config.CustomRankIcon or RankIcons[v]
-        _rankFinalName = (Config.CustomRankName ~= "") and Config.CustomRankName or v
-    end)
-
-    AppearanceGroup:AddInput('CfgCustomRankName', {
-        Default = Config.CustomRankName or '', Text = 'Custom Rank Name',
-        Numeric = false, Finished = false,
-    })
-    Options.CfgCustomRankName:OnChanged(function()
-        local v = Options.CfgCustomRankName.Value
-        Config.CustomRankName = v
-        _rankFinalName = (v ~= "") and v or (Config.RankName or "")
-    end)
-
-    AppearanceGroup:AddInput('CfgCustomRankIcon', {
-        Default = Config.CustomRankIcon or '', Text = 'Custom Rank Icon (asset id)',
-        Numeric = false, Finished = false,
-    })
-    Options.CfgCustomRankIcon:OnChanged(function()
-        local v = Options.CfgCustomRankIcon.Value
-        Config.CustomRankIcon = v
-        _rankFinalIcon = (v ~= "") and v or (RankIcons[Config.RankName] or "")
-    end)
-
-    AppearanceGroup:AddDropdown('CfgLeaderboardType', {
-        Values  = { 'Ranked', 'Win Streaks' },
-        Default = Config.LeaderboardType or 'Ranked',
-        Multi   = false,
-        Text    = 'Leaderboard Type',
-    })
-    Options.CfgLeaderboardType:OnChanged(function()
-        Config.LeaderboardType = Options.CfgLeaderboardType.Value
-    end)
-
-    AppearanceGroup:AddInput('CfgLeaderboardTargetRank', {
-        Default = Config.LeaderboardTargetRank or '', Text = 'Leaderboard Target Rank',
-        Numeric = false, Finished = false,
-        Tooltip = 'Exact rank string shown on the leaderboard row to spoof',
-    })
-    Options.CfgLeaderboardTargetRank:OnChanged(function()
-        Config.LeaderboardTargetRank = Options.CfgLeaderboardTargetRank.Value
-    end)
-
-    local function buildExportBlock()
-        
-        local lines = {
-            'getgenv().Config = {',
-            ('    Username              = %q,'):format(tostring(Config.Username or '')),
-            ('    DisplayName           = %q,'):format(tostring(Config.DisplayName or '')),
-            ('    Level                 = %q,'):format(tostring(Config.Level or '')),
-            ('    Streak                = %q,'):format(tostring(Config.Streak or '0')),
-            ('    Wins                  = %q,'):format(tostring(Config.Wins or '')),
-            ('    WinPercent            = %q,'):format(tostring(Config.WinPercent or '')),
-            ('    Robux                 = %q,'):format(tostring(Config.Robux or '0')),
-            ('    Keys                  = %q,'):format(tostring(Config.Keys or '')),
-            ('    AppearanceUserId      = '   .. tostring(Config.AppearanceUserId or 0) .. ','),
-            ('    RankName              = %q,'):format(tostring(Config.RankName or '')),
-            ('    CustomRankName        = %q,'):format(tostring(Config.CustomRankName or '')),
-            ('    CustomRankIcon        = %q,'):format(tostring(Config.CustomRankIcon or '')),
-            ('    LeaderboardType       = %q,'):format(tostring(Config.LeaderboardType or 'Ranked')),
-            ('    LeaderboardTargetRank = %q,'):format(tostring(Config.LeaderboardTargetRank or '')),
-            '}',
-        }
-        return table.concat(lines, '\n')
-    end
-
-    ExportGroup:AddLabel('Generates a config block you can share.', true)
-
-    ExportGroup:AddButton({
-        Text        = 'Copy Config to Clipboard',
-        DoubleClick = false,
-        Tooltip     = 'Copies a getgenv().Config = { ... } block',
-        Func        = function()
-            local out = buildExportBlock()
-            if setclipboard then
-                setclipboard(out)
-                Library:Notify('Config copied! Paste it before the main script.', 4)
-            else
-                warn('[ConfigExport]\n' .. out)
-                Library:Notify('setclipboard unavailable — config printed to console.', 4)
-            end
-        end,
-    })
-    ExportGroup:AddButton({
-            Text        = 'Copy Config to file',
-            DoubleClick = false,
-            Tooltip     = 'Copies to a Config file',
-            Func        = function()
-                local out = buildExportBlock()
-                if setclipboard then
-                    writefile("Config.json", game:GetService("HttpService"):JSONEncode(getgenv().Config))
-
-                    Library:Notify('Config exported to file!', 4)
-                else
-                    warn('[ConfigExport]\n' .. out)
-                    Library:Notify('Config failed to export!', 4)
-                end
-            end,
-        })
-
-    local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
-    MenuGroup:AddButton('Unload', function() Library:Unload() end)
-    MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', {
-        Default = 'End', NoUI = true, Text = 'Menu keybind'
-    })
-MenuGroup:AddToggle('SilentLoadToggle', {
-    Text = 'Silent Load',
-    Default = getgenv().SilentLoad,
-    Tooltip = 'Menu stays hidden when script reruns'
-})
-
-Toggles.SilentLoadToggle:OnChanged(function(v)
-    getgenv().SilentLoad = v
-end)
-    Library.ToggleKeybind = Options.MenuKeybind
-
-    ThemeManager:SetLibrary(Library)
-    SaveManager:SetLibrary(Library)
-
-SaveManager:IgnoreThemeSettings()
-
-    SaveManager:SetIgnoreIndexes({})
-
-    ThemeManager:SetFolder('ConfigManager')
-    SaveManager:SetFolder('ConfigManager/configs')
-
-    SaveManager:BuildConfigSection(Tabs['UI Settings'])
-    
-    ThemeManager:ApplyToTab(Tabs['UI Settings'])
-
-    SaveManager:LoadAutoloadConfig()
-    
-    if  Toggles.SilentLoadToggle and  not Toggles.SilentLoadToggle.Value then
-        task.spawn(function()
-            task.wait(0.1) 
-            pcall(function()
-                Library:Toggle() 
-            end)
-        end)
-    end
-end
+------------------------------------------------
+-- CALCULAR FPS + PING
+------------------------------------------------
+local frames = 0
+local lastTime = tick()
 
 RunService.RenderStepped:Connect(function()
-	PatchRobuxUI()
+	frames += 1
+	if tick() - lastTime >= 1 then
+		local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+		infoText.Text = "FPS: "..frames.." | MS: "..ping
+		frames = 0
+		lastTime = tick()
+	end
 end)
 
-task.spawn(function()
-    while true do
-        task.wait(1)
 
-        local latestLevel = tostring(LP:GetAttribute("Level") or "")
-        if latestLevel ~= "" and latestLevel ~= MyRealLevel then
-            MyRealLevel = latestLevel
-        end
 
-        local rawStreak = LP:GetAttribute("StatisticDuelsWinStreak")
-        if rawStreak ~= nil then
-            local latestStreak  = tostring(rawStreak)
-            local spoofedStreak = tostring(tonumber(Config.Streak) or 0)
-            if latestStreak ~= spoofedStreak then
-                MyRealStreak = latestStreak
-             
-                LP:SetAttribute("StatisticDuelsWinStreak", tonumber(Config.Streak))
-                local ws = LP:FindFirstChild("CustomLeaderstats")
-                    and LP.CustomLeaderstats:FindFirstChild("Win Streak")
-                if ws then ws.Value = tonumber(Config.Streak) end
-            end
-        end
-    end
-end)
+      
