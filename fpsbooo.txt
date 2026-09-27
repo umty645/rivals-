@@ -1,0 +1,104 @@
+--[N] Client-side FPS Boost & Live FPS Counter
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+local Terrain = Workspace:FindFirstChildOfClass("Terrain")
+local localPlayer = Players.LocalPlayer
+
+-- 1. Create FPS Counter UI (Top Left, Green Text)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "OnyxFPSCounter"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Use CoreGui if possible, fallback to PlayerGui
+local success = pcall(function()
+    screenGui.Parent = CoreGui
+end)
+if not success then
+    screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Name = "FPSLabel"
+fpsLabel.Size = UDim2.new(0, 100, 0, 30)
+fpsLabel.Position = UDim2.new(0, 10, 0, 10) -- Top Left
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.Font = Enum.Font.Code
+fpsLabel.TextSize = 14
+fpsLabel.TextColor3 = Color3.fromRGB(0, 255, 0) -- Green text
+fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+fpsLabel.TextYAlignment = Enum.TextYAlignment.Center
+fpsLabel.TextStrokeTransparency = 0.5 -- Makes it readable on any background
+fpsLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+fpsLabel.Parent = screenGui
+
+-- Live FPS Calculation Loop
+local frameCount = 0
+local lastUpdate = tick()
+
+RunService.RenderStepped:Connect(function()
+    frameCount = frameCount + 1
+    local now = tick()
+    if now - lastUpdate >= 1 then
+        local fps = math.floor(frameCount / (now - lastUpdate))
+        fpsLabel.Text = "FPS: " .. tostring(fps)
+        frameCount = 0
+        lastUpdate = now
+    end
+end)
+
+-- 2. Lighting Optimization (Kill heavy post-processing and shadows)
+pcall(function()
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 9e9
+    Lighting.Brightness = 2
+    
+    for _, v in ipairs(Lighting:GetChildren()) do
+        if v:IsA("PostEffect") or v:IsA("Sky") or v:IsA("Atmosphere") or v:IsA("Clouds") then
+            v:Destroy()
+        end
+    end
+end)
+
+-- 3. Terrain & Water Optimization
+if Terrain then
+    pcall(function()
+        Terrain.WaterWaveSize = 0
+        Terrain.WaterWaveSpeed = 0
+        Terrain.WaterReflectance = 0
+        Terrain.WaterTransparency = 0
+        sethiddenproperty(Terrain, "Decoration", false)
+    end)
+end
+
+-- 4. Render Settings & Material Overrides
+pcall(function()
+    settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+    settings().Rendering.MeshPartDetailLevel = Enum.MeshPartDetailLevel.Level01
+end)
+
+-- 5. Part and Particle Cleaner
+for _, part in ipairs(Workspace:GetDescendants()) do
+    if part:IsA("BasePart") then
+        part.CastShadow = false
+        part.Material = Enum.Material.SmoothPlastic
+        part.Reflectance = 0
+    elseif part:IsA("Decal") or part:IsA("Texture") then
+        part.Transparency = 1
+    elseif part:IsA("ParticleEmitter") or part:IsA("Fire") or part:IsA("Smoke") or part:IsA("Sparkles") then
+        part.Enabled = false
+    end
+end
+
+-- 6. Auto-cleanup Garbage Collection loop
+task.spawn(function()
+    while task.wait(30) do
+        collectgarbage("collect")
+    end
+end)
+
+print("[Onyx Engine] Boost applied & FPS counter active.")
+
