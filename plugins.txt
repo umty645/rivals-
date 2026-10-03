@@ -1,43 +1,40 @@
--- Rivals FPS Boost & Potato Graphics Script
-local lighting = game:GetService("Lighting")
-local workspace = game:GetService("Workspace")
-local terrain = workspace:Terrain
+-- Jibu FPS Boost
+-- LocalScript
 
--- 1. 조명 및 그림자 제거 (성능 극대화)
-lighting.GlobalShadows = false
-lighting.FogEnd = 9e9
-lighting.Brightness = 1
-for _, v in ipairs(lighting:GetChildren()) do
-    if v:IsA("PostEffect") or v:IsA("Sky") or v:IsA("Atmosphere") then
-        v:Destroy()
+local Lighting = game:GetService("Lighting")
+
+-- 하늘/조명 단순화
+pcall(function()
+    Lighting.GlobalShadows = false
+    Lighting.Brightness = 1
+    Lighting.EnvironmentDiffuseScale = 0
+    Lighting.EnvironmentSpecularScale = 0
+end)
+
+-- 조명 후처리 제거
+for _, v in ipairs(Lighting:GetChildren()) do
+    if v:IsA("BloomEffect")
+    or v:IsA("BlurEffect")
+    or v:IsA("ColorCorrectionEffect")
+    or v:IsA("DepthOfFieldEffect")
+    or v:IsA("SunRaysEffect") then
+        v.Enabled = false
     end
 end
 
--- 2. 회색 하늘(스카이박스) 생성
-local sky = Instance.new("Sky")
-sky.SkyboxBk = "rbxassetid://0"
-sky.SkyboxDn = "rbxassetid://0"
-sky.SkyboxFt = "rbxassetid://0"
-sky.SkyboxLf = "rbxassetid://0"
-sky.SkyboxRt = "rbxassetid://0"
-sky.SkyboxUp = "rbxassetid://0"
-sky.Parent = lighting
-
--- 3. 맵 블럭 및 파츠 최적화 (매끄럽고 단순하게)
-for _, part in ipairs(workspace:GetDescendants()) do
-    if part:IsA("BasePart") then
-        part.Material = Enum.Material.SmoothPlastic
-        part.Reflectance = 0
-        part.CastShadow = false
-    elseif part:IsA("Decal") or part:IsA("Texture") then
-        part.Transparency = 1 -- 텍스처 제거로 깔끔하게 만듦
-    end
+-- 하늘을 단순한 회색으로
+local sky = Lighting:FindFirstChildOfClass("Sky")
+if sky then
+    sky:Destroy()
 end
 
--- 4. 지형 디테일 제거
-terrain.WaterWaveSize = 0
-terrain.WaterWaveSpeed = 0
-terrain.WaterTransparency = 1
-terrain.WaterReflectance = 0
-
-print("Rivals FPS Boost Applied Successfully!")
+-- 맵의 표면 디테일 최소화
+for _, v in ipairs(workspace:GetDescendants()) do
+    if v:IsA("BasePart") then
+        pcall(function()
+            v.CastShadow = false
+            v.Material = Enum.Material.SmoothPlastic
+            v.Reflectance = 0
+        end)
+    end
+end
