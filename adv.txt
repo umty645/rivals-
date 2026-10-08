@@ -1,0 +1,100 @@
+-- ASMR FPS Redux Ultra Full Texture Pack Script for Roblox Rivals
+local ContentProvider = game:GetService("ContentProvider")
+local SoundService = game:GetService("SoundService")
+local Lighting = game:GetService("Lighting")
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- 1. 하늘(Sky) 텍스처팩 에셋 일괄 적용
+Lighting.GlobalShadows = false
+for _, v in ipairs(Lighting:GetChildren()) do
+    if v:IsA("Sky") then v:Destroy() end
+end
+
+local sky = Instance.new("Sky")
+sky.SkyboxBk = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/sky512_bk.png"
+sky.SkyboxDn = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/sky512_dn.png"
+sky.SkyboxFt = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/sky512_ft.png"
+sky.SkyboxLf = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/sky512_lf.png"
+sky.SkyboxRt = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/sky512_rt.png"
+sky.SkyboxUp = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/sky512_up.png"
+sky.Parent = Lighting
+
+-- 2. 전체 교체 대상 ID 맵 데이터 구축 (JSON 내 모든 replace_ids 포함)
+local cdnMap = {
+    -- CDN 링크 매핑 항목들
+    [103035811146294] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/mixkit-pebbles-click-1128.wav",
+    [177266782] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/mixkit-modern-click-box-check-1120.wav",
+    [8483887957] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/enter_fps.ogg",
+    [17138490999] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/healnew.wav",
+    [16537337310] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/headoonyx_loud3.wav",
+    [16537449730] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/headoonyx_loud3.wav",
+    [13110130082] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/hitonyx_loud.wav",
+    [16530229616] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/kill_voice.ogg",
+    [16530229541] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/kill_voice2.ogg",
+    [16530229695] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/kill_voice3.ogg",
+    [13455969017] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/bloxonyx.ogg",
+    [17826470563] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/countonyx.wav",
+    [17259538274] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/countonyx.wav",
+    [114274252176516] = "https://66mods-assets.pages.dev/repos/66buncer/ASMR-FPS-Redux/portal_pop_double.wav"
+}
+
+-- 무음 처리 및 투명화 처리할 ID 목록 집합 (mode: id)
+local removeIds = {
+    -- Intro / Lobby Music
+    [6384899588] = true, [17697682466] = true, [17733314783] = true,
+    -- Arena / Map Ambience & Patterns
+    [7658055825] = true, [17813065011] = true, [17813065464] = true, [12099785239] = true,
+    [13854780042] = true, [136887158756561] = true, [14246425725] = true, [14246425399] = true,
+    -- VFX Remove Batches (1~6 및 추가 최적화 항목 전체 반영)
+    [109543449111855] = true, [14035694679] = true, [13543560548] = true, [11906967471] = true, [9026948517] = true,
+    [16937426755] = true, [187926731] = true, [16830673704] = true, [17177109207] = true, [16862159131] = true,
+    [16728762748] = true, [1285232] = true, [9933645838] = true, [14503501201] = true, [14608865171] = true,
+    [102648809593259] = true, [17573147187] = true, [12823974848] = true, [13852843634] = true, [7673945506] = true,
+    [11834332063] = true, [16072591407] = true, [13576015697] = true, [18451206189] = true, [18451228296] = true,
+    [18357583854] = true, [16885732740] = true, [2590541] = true, [18445890274] = true, [9481249945] = true,
+    [11923849665] = true, [12711079448] = true, [102283967584358] = true, [15439244719] = true, [72393178224314] = true,
+    [89210639622638] = true, [77049671345769] = true, [76853894340797] = true, [17160801983] = true, [17098901515] = true,
+    [15109829804] = true -- Headshot spark removal
+}
+
+-- 3. 실시간 오브젝트 감지 및 적용 처리
+local function applyTexturePack(item)
+    if item:IsA("Sound") then
+        for id, url in pairs(cdnMap) do
+            if item.SoundId and item.SoundId:find(tostring(id)) then
+                item.SoundId = url
+            end
+        end
+        for id, _ in pairs(removeIds) do
+            if item.SoundId and item.SoundId:find(tostring(id)) then
+                item.Volume = 0
+            end
+        end
+    elseif item:IsA("BasePart") or item:IsA("DataModelMesh") then
+        for id, _ in pairs(removeIds) do
+            -- ID 매칭되는 이펙트나 파츠 투명화 / 삭제
+            pcall(function()
+                item.Transparency = 1
+                if item:IsA("BasePart") then
+                    item.CanCollide = false
+                end
+            end)
+        end
+    end
+end
+
+Workspace.DescendantAdded:Connect(applyTexturePack)
+PlayerGui.DescendantAdded:Connect(applyTexturePack)
+
+for _, obj in ipairs(Workspace:GetDescendants()) do
+    applyTexturePack(obj)
+end
+
+for _, obj in ipairs(PlayerGui:GetDescendants()) do
+    applyTexturePack(obj)
+end
+
+print("ASMR FPS Redux Full Texture Pack Script Applied Successfully!")
