@@ -1,0 +1,93 @@
+_G.HeadSize = 20
+_G.Disabled = false           -- Set to false to START, true to STOP
+_G.TeamCheck = true           -- If true, will not affect your teammates
+_G.ShowNames = true           -- Shows player names above the hitbox
+_G.HitboxColor = "Really yellow"
+_G.HitboxTransparency = 0.7
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local localPlayer = Players.LocalPlayer
+
+local backupData = {}
+
+-- Function to create visual name tags
+local function createESP(hrp, playerName)
+    if hrp:FindFirstChild("HitboxESP") then return end
+    
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "HitboxESP"
+    billboard.Adornee = hrp
+    billboard.Size = UDim2.new(0, 200, 0, 50)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Parent = hrp
+
+    local label = Instance.new("TextLabel")
+    label.BackgroundTransparency = 1
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.Text = "[ " .. playerName .. " ]"
+    label.TextColor3 = Color3.fromRGB(255, 255, 0) -- Yellow
+    label.TextStrokeTransparency = 0
+    label.TextScaled = true
+    label.Font = Enum.Font.SourceSansBold
+    label.Parent = billboard
+end
+
+-- Main Loop
+RunService.RenderStepped:Connect(function()
+    if _G.Disabled then
+        -- Restore everyone to normal when disabled
+        for player, data in pairs(backupData) do
+            pcall(function()
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = player.Character.HumanoidRootPart
+                    hrp.Size = data.Size
+                    hrp.Transparency = data.Transparency
+                    hrp.Material = data.Material
+                    if hrp:FindFirstChild("HitboxESP") then hrp.HitboxESP:Destroy() end
+                end
+            end)
+            backupData[player] = nil
+        end
+        return
+    end
+
+    for _, v in ipairs(Players:GetPlayers()) do
+        if v ~= localPlayer and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+            
+            -- Team Check Logic
+            if _G.TeamCheck and v.Team == localPlayer.Team then
+                -- If they are teammates, make sure they stay normal
+                continue
+            end
+
+            local hrp = v.Character.HumanoidRootPart
+            local hum = v.Character:FindFirstChildOfClass("Humanoid")
+
+            if hum and hum.Health > 0 then
+                -- Store original data if not already backed up
+                if not backupData[v] then
+                    backupData[v] = {
+                        Size = hrp.Size,
+                        Transparency = hrp.Transparency,
+                        Material = hrp.Material
+                    }
+                end
+
+                -- Apply Perfect Hitbox
+                pcall(function()
+                    hrp.Size = Vector3.new(_G.HeadSize, _G.HeadSize, _G.HeadSize)
+                    hrp.Transparency = _G.HitboxTransparency
+                    hrp.BrickColor = BrickColor.new(_G.HitboxColor)
+                    hrp.Material = Enum.Material.Neon
+                    hrp.CanCollide = false
+                    
+                    if _G.ShowNames then
+                        createESP(hrp, v.Name)
+                    end
+                end)
+            end
+        end
+    end
+end)
