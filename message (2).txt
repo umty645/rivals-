@@ -1,0 +1,158 @@
+-- [[ XENO OMNI-HACK : THE FINAL EDITION ]]
+-- Optimized for Xeno v1.3.30b (32GB RAM PC)
+-- 모든 게임, 모든 유저 대상 완전 적용 버전
+
+local Players = cloneref(game:GetService("Players"))
+local LP = Players.LocalPlayer
+local Mouse = LP:GetMouse()
+local Camera = workspace.CurrentCamera
+local RS = cloneref(game:GetService("RunService"))
+local UIS = cloneref(game:GetService("UserInputService"))
+
+-- [기능 상태]
+_G.MenuVisible = true
+_G.ESP = false
+_G.Hitbox = false
+_G.Wallbang = false
+_G.Size = 25
+
+-- [1. GUI 제작 (드래그 가능)]
+local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 250, 0, 320)
+MainFrame.Position = UDim2.new(0.5, -125, 0.4, 0)
+MainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+Title.Text = "XENO OMNI-HACK"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 18
+Title.Font = Enum.Font.Code
+
+-- [버튼 생성기]
+local function CreateToggle(text, pos, callback)
+    local btn = Instance.new("TextButton", MainFrame)
+    btn.Size = UDim2.new(0, 210, 0, 55)
+    btn.Position = pos
+    btn.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+    btn.Text = text .. ": OFF"
+    btn.TextColor3 = Color3.fromRGB(255, 80, 80)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
+    
+    local state = false
+    btn.MouseButton1Click:Connect(function()
+        state = not state
+        btn.Text = text .. (state and ": ON" or ": OFF")
+        btn.TextColor3 = state and Color3.fromRGB(80, 255, 80) or Color3.fromRGB(255, 80, 80)
+        callback(state)
+    end)
+end
+
+CreateToggle("ESP (ALL VISIBLE)", UDim2.new(0, 20, 0, 65), function(v) _G.ESP = v end)
+CreateToggle("HITBOX (GIGANTIC)", UDim2.new(0, 20, 0, 140), function(v) _G.Hitbox = v end)
+CreateToggle("WALLBANG (BYPASS)", UDim2.new(0, 20, 0, 215), function(v) _G.Wallbang = v end)
+
+-- [2. 타겟팅 시스템 (최적화)]
+local function GetClosestTarget()
+    local target, dist = nil, math.huge
+    local Mid = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= LP and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+            if v.Team ~= LP.Team or v.Team == nil then
+                local pos, vis = Camera:WorldToViewportPoint(v.Character.HumanoidRootPart.Position)
+                if vis then
+                    local mag = (Vector2.new(pos.X, pos.Y) - Mid).Magnitude
+                    if mag < dist and mag < 800 then
+                        target = v.Character.HumanoidRootPart
+                        dist = mag
+                    end
+                end
+            end
+        end
+    end
+    return target
+end
+
+-- [3. 메인 로직 루프 (히트박스 & ESP)]
+RS.RenderStepped:Connect(function()
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LP and p.Character then
+            -- 히트박스 확장 (강제 고정)
+            if _G.Hitbox and (p.Team ~= LP.Team or p.Team == nil) then
+                for _, part in pairs(p.Character:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        part.Size = Vector3.new(_G.Size, _G.Size, _G.Size)
+                        part.Transparency = 0.8
+                        part.CanCollide = false
+                    end
+                end
+            end
+            
+            -- ESP (실루엣 고정)
+            local hl = p.Character:FindFirstChild("Omni_Highlight")
+            if _G.ESP and (p.Team ~= LP.Team or p.Team == nil) then
+                if not hl then
+                    hl = Instance.new("Highlight", p.Character)
+                    hl.Name = "Omni_Highlight"
+                    hl.FillTransparency = 1
+                    hl.OutlineColor = Color3.fromRGB(255, 0, 0)
+                    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                end
+            elseif hl then hl:Destroy() end
+        end
+    end
+end)
+
+-- [4. 범용 월뱅 (Raycast + Meta Method Hooking)]
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+
+    -- 1. 월뱅 (Raycast 우회: 모든 장애물을 무시하고 타겟에게 직접 연결)
+    if method == "Raycast" and _G.Wallbang and not checkcaller() then
+        if args[3] then
+            args[3].FilterDescendantsInstances = {workspace:FindFirstChild("Map"), workspace:FindFirstChild("Levels"), workspace.Terrain}
+            args[3].FilterType = Enum.RaycastFilterType.Exclude
+        end
+    end
+
+    -- 2. 타겟 강제 주입 (모든 FireServer 패킷 수정)
+    if method == "FireServer" and _G.Wallbang and not checkcaller() then
+        local t = GetClosestTarget()
+        if t then
+            for i, arg in pairs(args) do
+                if typeof(arg) == "table" then
+                    arg.HitPart = t
+                    arg.HitPos = t.Position
+                    if arg.Origin then arg.Origin = t.Position + Vector3.new(0, 5, 0) end
+                elseif typeof(arg) == "Vector3" then
+                    args[i] = t.Position
+                end
+            end
+        end
+    end
+    
+    if method == "Kick" then return nil end
+    return oldNamecall(self, unpack(args))
+end)
+setreadonly(mt, true)
+
+-- [5. 메뉴 열기/닫기 단축키]
+UIS.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.RightControl then
+        _G.MenuVisible = not _G.MenuVisible
+        MainFrame.Visible = _G.MenuVisible
+    end
+end)
+
+print("✅ XENO OMNI-HACK LOADED! (ALL GAMES COMPATIBLE)")
