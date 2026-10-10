@@ -1,0 +1,161 @@
+-- Rivals AutoHitbox ESP & Hitbox Size Changer
+-- K 키: 토글 (ON/OFF)
+-- 1.0x = 기본, 1.1x = 약간 증가, 2.0x = 두 배
+
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+-- 설정 변수들
+local hitboxScale = 1.0 -- 1.0 (기본), 1.1 (약간 증가), 2.0 (두 배)
+local espEnabled = true -- ESP 켜짐/꺼짐
+local active = false -- 메인 활성화 상태
+
+-- 히트박스 프레임들을 저장할 테이블
+local hitboxFrames = {}
+local espBoxes = {}
+
+-- ESP용 Frame 생성 함수
+local function createESPBox(parent, color)
+    local box = Instance.new("Frame")
+    box.BackgroundTransparency = 0.5
+    box.BackgroundColor3 = color
+    box.BorderSizePixel = 0
+    box.ZIndex = 9999
+    box.Visible = false
+    box.Parent = parent
+    
+    return box
+end
+
+-- ESP용 Line 생성 함수
+local function createESPLines(parent)
+    local lines = {}
+    for i = 1, 4 do
+        local line = Instance.new("Frame")
+        line.BackgroundTransparency = 0.3
+        line.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        line.BorderSizePixel = 0
+        line.ZIndex = 9998
+        line.Visible = false
+        line.Parent = parent
+        table.insert(lines, line)
+    end
+    return lines
+end
+
+-- 인간형 모델에서 히트박스 크기 조정
+local function adjustHitbox(model, scale)
+    if not model or not model:IsA("Model") then return end
+    
+    -- HumanoidRootPart 기준
+    local rootPart = model:FindFirstChild("HumanoidRootPart")
+    if not rootPart then return end
+    
+    -- 캐릭터의 히트박스를 나타내는 부속물들 찾기
+    local partsToScale = {}
+    
+    for _, child in ipairs(model:GetChildren()) do
+        if child:IsA("BasePart") and child.Name ~= "HumanoidRootPart" then
+            table.insert(partsToScale, child)
+        end
+    end
+    
+    -- 각 파티클의 크기를 스케일 적용
+    local originalSizes = {}
+    for _, part in ipairs(partsToScale) do
+        originalSizes[part] = part.Size
+        part.Size = part.Size * scale
+    end
+    
+    return originalSizes
+end
+
+-- ESP 업데이트
+local function updateESP()
+    if not active then return end
+    
+    for _, char in ipairs(workspace:GetChildren()) do
+        if char:IsA("Model") and char:FindFirstChild("Humanoid") then
+            local humanoid = char:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health > 0 then
+                -- ESP 박스 업데이트 로직
+                -- 여기서는 간단한 ESP 구현
+                
+                -- 이미 존재하는 ESP 박스가 있다면 업데이트
+                local espBox = espBoxes[char]
+                if not espBox then
+                    espBox = createESPBox(char, Color3.fromRGB(255, 0, 0))
+                    espBoxes[char] = espBox
+                end
+                
+                -- ESP 위치 업데이트
+                local rootPart = char:FindFirstChild("HumanoidRootPart")
+                if rootPart then
+                    espBox.Position = rootPart.Position
+                    espBox.Size = Vector3.new(2 * hitboxScale, 4 * hitboxScale, 2 * hitboxScale)
+                    espBox.Visible = true
+                else
+                    espBox.Visible = false
+                end
+            end
+        end
+    end
+end
+
+-- 키 입력 처리
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.K then
+        active = not active
+        
+        if active then
+            -- 활성화 시 모든 캐릭터의 히트박스 크기 조정
+            for _, char in ipairs(workspace:GetChildren()) do
+                if char:IsA("Model") and char:FindFirstChild("Humanoid") then
+                    local humanoid = char:FindFirstChild("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        adjustHitbox(char, hitboxScale)
+                        
+                        -- ESP 활성화
+                        if espEnabled then
+                            local espBox = createESPBox(char, Color3.fromRGB(255, 0, 0))
+                            espBoxes[char] = espBox
+                        end
+                    end
+                end
+            end
+        else
+            -- 비활성화 시 원래대로 복귀
+            for _, char in ipairs(workspace:GetChildren()) do
+                if char:IsA("Model") and char:FindFirstChild("Humanoid") then
+                    local humanoid = char:FindFirstChild("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        adjustHitbox(char, 1.0)
+                        
+                        -- ESP 비활성화
+                        local espBox = espBoxes[char]
+                        if espBox then
+                            espBox.Visible = false
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- ESP 업데이트 루프
+RunService.RenderStepped:Connect(function()
+    if active and espEnabled then
+        updateESP()
+    end
+end)
+
+print("Rivals Hitbox ESP 스크립트 로드됨!")
+print("K 키를 눌러 활성화/비활성화하세요.")
+print("히트박스 크기: " .. hitboxScale .. "x")
+print("ESP: " .. (espEnabled and "켜짐" or "꺼짐"))
