@@ -1,0 +1,151 @@
+local repS = cloneref(game:GetService("ReplicatedStorage"))
+local plrs = cloneref(game:GetService("Players"))
+local runS = cloneref(game:GetService("RunService"))
+local ws = cloneref(game:GetService("Workspace"))
+local uis = cloneref(game:GetService("UserInputService"))
+local lplr = plrs.LocalPlayer
+local util = require(repS.Modules.Utility)
+local enum = require(repS.Modules.EnumLibrary)
+local FighterController = require(lplr.PlayerScripts.Controllers.FighterController)
+
+getgenv().Config = {
+    Enabled = true,
+    FireRate = 0.0005,
+    WeaponSlot = "Primary"
+}
+
+local slots = {
+    Primary = 1,
+    Secondary = 2,
+    Melee = 3
+}
+
+local function getSlotNumber()
+    return slots[getgenv().Config.WeaponSlot] or 1
+end
+
+task.spawn(function()
+    local localFighter = FighterController.LocalFighter
+    while not localFighter do
+        task.wait(0.1)
+        localFighter = FighterController.LocalFighter
+    end
+    pcall(function()
+        localFighter:EquipItem(getSlotNumber())
+    end)
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if not getgenv().Config.Enabled then continue end
+        local localFighter = FighterController.LocalFighter
+        if localFighter then
+            pcall(function()
+                localFighter:EquipItem(getSlotNumber())
+            end)
+        end
+    end
+end)
+
+local lastFire = 0
+
+local function getClosestTarget()
+    local char = lplr.Character
+    if not char then return nil, nil, nil end
+    local myRoot = char:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil, nil, nil end
+    
+    local closestModel = nil
+    local closestRoot = nil
+    local closestHead = nil
+    local closestDist = 500
+    
+    for _, obj in ipairs(ws:GetDescendants()) do
+        if obj:IsA("Model") then
+            local pRoot = obj:FindFirstChild("HumanoidRootPart")
+            local pHead = obj:FindFirstChild("Head")
+            local pHum = obj:FindFirstChildWhichIsA("Humanoid")
+            
+            if pRoot and pHead and pHum and pHum.Health > 0 then
+           
+                local isPlayer = plrs:GetPlayerFromCharacter(obj)
+                if not isPlayer and obj ~= char then
+                    local dist = (myRoot.Position - pRoot.Position).Magnitude
+                    if dist < closestDist then
+                        closestDist = dist
+                        closestModel = obj
+                        closestRoot = pRoot
+                        closestHead = pHead
+                    end
+                end
+            end
+        end
+    end
+    return closestModel, closestRoot, closestHead
+end
+
+runS.Heartbeat:Connect(function()
+    
+    local targetModel, targetRoot, targetHead = getClosestTarget()
+    local desyncCF = nil
+    
+    if targetRoot and targetHead then
+        local desyncPos = (targetRoot.CFrame * CFrame.new(0, 1, 2)).Position
+        desyncCF = CFrame.lookAt(desyncPos, targetHead.Position)
+    end
+
+    if desyncCF and lplr.Character then
+        local myRoot = lplr.Character:FindFirstChild("HumanoidRootPart")
+        if myRoot then
+            local oldCF = myRoot.CFrame
+            local oldVel = myRoot.Velocity
+            local oldRotVel = myRoot.RotVelocity
+            myRoot.CFrame = desyncCF
+            runS:BindToRenderStep("__restore", 101, function()
+                if myRoot then
+                    myRoot.CFrame = oldCF
+                    myRoot.Velocity = oldVel
+                    myRoot.RotVelocity = oldRotVel
+                end
+                runS:UnbindFromRenderStep("__restore")
+            end)
+        end
+    end
+
+    if not getgenv().Config.Enabled then return end
+    if not targetModel or not targetHead or not targetRoot then return end
+    
+    if not lplr.Character or not lplr.Character:FindFirstChild("HumanoidRootPart") then return end
+    if not FighterController or not FighterController.LocalFighter then return end
+    local item = FighterController.LocalFighter.EquippedItem
+    if not item then return end
+    if tick() - lastFire < getgenv().Config.FireRate then return end
+    lastFire = tick()
+    
+    local originPos = desyncCF and desyncCF.Position or targetRoot.Position
+    local targetPos = targetHead.Position
+    local aimCF = CFrame.lookAt(originPos, targetPos)
+    local targetCF = targetHead.CFrame
+    local randomOffset = Vector3.new(
+        (math.random() - 0.5) * 0.1,
+        (math.random() - 0.5) * 0.1,
+        (math.random() - 0.5) * 0.1
+    )
+    local aimedPos = targetPos + randomOffset
+    local objSpaceHeadOffset = targetHead.CFrame:ToObjectSpace(CFrame.new(aimedPos))
+    local cameradata = {}
+    cameradata[utf8.char(1)] = {
+        [utf8.char(0)] = util:EncodeCFrame(aimCF),
+        [utf8.char(1)] = util:EncodeCFrame(targetCF),
+        [utf8.char(2)] = targetHead,
+        [utf8.char(3)] = util:EncodeCFrame(objSpaceHeadOffset)
+    }
+    
+    repS.Remotes.Replication.Fighter.UseItem:FireServer(
+        item:Get("ObjectID"),
+        enum:ToEnum("StartShooting"),
+        cameradata,
+        nil
+    )
+end)
