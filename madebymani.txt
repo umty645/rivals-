@@ -1,0 +1,536 @@
+local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
+local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
+local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
+local SaveManager = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
+
+local repS = cloneref(game:GetService("ReplicatedStorage"))
+local plrs = cloneref(game:GetService("Players"))
+local runS = cloneref(game:GetService("RunService"))
+local ws = cloneref(game:GetService("Workspace"))
+local uis = cloneref(game:GetService("UserInputService"))
+local tween = cloneref(game:GetService("TweenService"))
+
+local lplr = plrs.LocalPlayer
+local util = require(repS.Modules.Utility)
+local enum = require(repS.Modules.EnumLibrary)
+local FighterController = require(lplr.PlayerScripts.Controllers.FighterController)
+
+getgenv().Config = {
+    Enabled = true,
+    FireRate = 0.05,
+    WeaponSlot = "Primary",
+    MaxDistance = 500,
+    Underground = false,
+    Orbit = false,
+    OrbitRadius = 3,
+    OrbitSpeed = 2,
+}
+
+local slots = { Primary = 1, Secondary = 2, Melee = 3 }
+local function getSlotNumber()
+    return slots[getgenv().Config.WeaponSlot] or 1
+end
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if not getgenv().Config.Enabled then continue end
+        local localFighter = FighterController.LocalFighter
+        if localFighter and localFighter.EquippedItem == nil then
+            pcall(function() localFighter:EquipItem(getSlotNumber()) end)
+        end
+    end
+end)
+
+local lastFire = 0
+local cachedTarget = nil
+local lastCacheTime = 0
+local CACHE_INTERVAL = 0.15
+
+local function getClosestTarget()
+    local now = tick()
+    if now - lastCacheTime < CACHE_INTERVAL and cachedTarget then
+        local hum = cachedTarget:FindFirstChildWhichIsA("Humanoid")
+        if hum and hum.Health > 0 and cachedTarget:FindFirstChild("HumanoidRootPart") then
+            return cachedTarget, cachedTarget:FindFirstChild("HumanoidRootPart"), cachedTarget:FindFirstChild("Head")
+        end
+        cachedTarget = nil
+    end
+    lastCacheTime = now
+    local char = lplr.Character
+    local myRoot = char and char:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil, nil, nil end
+    local closestModel, closestRoot, closestHead = nil, nil, nil
+    local closestDist = getgenv().Config.MaxDistance
+    for _, obj in ipairs(ws:GetDescendants()) do
+        if obj:IsA("Model") and obj ~= char then
+            local pRoot = obj:FindFirstChild("HumanoidRootPart")
+            local pHead = obj:FindFirstChild("Head")
+            local pHum = obj:FindFirstChildWhichIsA("Humanoid")
+            if pRoot and pHead and pHum and pHum.Health > 0 then
+                if not plrs:GetPlayerFromCharacter(obj) then
+                    local dist = (myRoot.Position - pRoot.Position).Magnitude
+                    if dist < closestDist then
+                        closestDist = dist
+                        closestModel = obj
+                        closestRoot = pRoot
+                        closestHead = pHead
+                    end
+                end
+            end
+        end
+    end
+    cachedTarget = closestModel
+    return closestModel, closestRoot, closestHead
+end
+
+local undergroundConn = nil
+local function startUnderground()
+    undergroundConn = runS.Heartbeat:Connect(function()
+        if not getgenv().Config.Underground then
+            undergroundConn:Disconnect()
+            undergroundConn = nil
+            return
+        end
+        local _, targetRoot = getClosestTarget()
+        if not targetRoot then return end
+        local char = lplr.Character
+        local myRoot = char and char:FindFirstChild("HumanoidRootPart")
+        if not myRoot then return end
+        local localFighter = FighterController.LocalFighter
+        if localFighter then pcall(function() localFighter:EquipItem(slots.Melee) end) end
+        myRoot.CFrame = CFrame.new(targetRoot.Position.X, targetRoot.Position.Y - 5, targetRoot.Position.Z)
+    end)
+end
+
+local orbitConn = nil
+local orbitAngle = 0
+local function startOrbit()
+    orbitConn = runS.Heartbeat:Connect(function(dt)
+        if not getgenv().Config.Orbit then
+            orbitConn:Disconnect()
+            orbitConn = nil
+            return
+        end
+        local _, targetRoot = getClosestTarget()
+        if not targetRoot then return end
+        local char = lplr.Character
+        local myRoot = char and char:FindFirstChild("HumanoidRootPart")
+        if not myRoot then return end
+        orbitAngle = orbitAngle + dt * getgenv().Config.OrbitSpeed
+        local r = getgenv().Config.OrbitRadius
+        myRoot.CFrame = CFrame.new(
+            targetRoot.Position.X + math.cos(orbitAngle) * r,
+            targetRoot.Position.Y,
+            targetRoot.Position.Z + math.sin(orbitAngle) * r
+        ) * CFrame.Angles(0, -orbitAngle, 0)
+    end)
+end
+
+runS.Heartbeat:Connect(function()
+    if not getgenv().Config.Enabled then return end
+    local targetModel, targetRoot, targetHead = getClosestTarget()
+    if not targetModel or not targetHead or not targetRoot then return end
+    local char = lplr.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local localFighter = FighterController.LocalFighter
+    if not localFighter or not localFighter.EquippedItem then return end
+    if tick() - lastFire < getgenv().Config.FireRate then return end
+    lastFire = tick()
+    local originPos = targetHead.Position + Vector3.new(0, 1, 0)
+    local targetPos = targetHead.Position
+    local aimCF = CFrame.lookAt(originPos, targetPos)
+    local targetCF = targetHead.CFrame
+    local randomOffset = Vector3.new((math.random()-0.5)*0.02, (math.random()-0.5)*0.02, (math.random()-0.5)*0.02)
+    local aimedPos = targetPos + randomOffset
+    local objSpaceHeadOffset = targetHead.CFrame:ToObjectSpace(CFrame.new(aimedPos))
+    local cameradata = {}
+    cameradata[utf8.char(1)] = {
+        [utf8.char(0)] = util:EncodeCFrame(aimCF),
+        [utf8.char(1)] = util:EncodeCFrame(targetCF),
+        [utf8.char(2)] = targetHead,
+        [utf8.char(3)] = util:EncodeCFrame(objSpaceHeadOffset)
+    }
+    pcall(function()
+        repS.Remotes.Replication.Fighter.UseItem:FireServer(
+            localFighter.EquippedItem:Get("ObjectID"),
+            enum:ToEnum("StartShooting"),
+            cameradata,
+            nil
+        )
+    end)
+end)
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BoneclawUI"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.DisplayOrder = 999
+screenGui.IgnoreGuiInset = true
+screenGui.Parent = lplr.PlayerGui
+
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 55, 0, 55)
+toggleBtn.Position = UDim2.new(0, 8, 0.5, -27)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Text = "☰"
+toggleBtn.TextSize = 22
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.BorderSizePixel = 0
+toggleBtn.ZIndex = 10
+toggleBtn.Parent = screenGui
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 10)
+local panel = Instance.new("Frame")
+panel.Size = UDim2.new(0, 210, 0, 360)
+panel.Position = UDim2.new(0, 72, 0.5, -180)
+panel.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+panel.BorderSizePixel = 0
+panel.Visible = true
+panel.ZIndex = 5
+panel.Parent = screenGui
+Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 34)
+titleBar.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+titleBar.BorderSizePixel = 0
+titleBar.ZIndex = 6
+titleBar.Parent = panel
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 12)
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 1, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "mani is dadda?"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 12
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.ZIndex = 7
+titleLabel.Parent = titleBar
+local scroll = Instance.new("ScrollingFrame")
+scroll.Size = UDim2.new(1, -8, 1, -42)
+scroll.Position = UDim2.new(0, 4, 0, 38)
+scroll.BackgroundTransparency = 1
+scroll.ScrollBarThickness = 2
+scroll.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
+scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+scroll.ZIndex = 6
+scroll.Parent = panel
+
+local listLayout = Instance.new("UIListLayout")
+listLayout.Padding = UDim.new(0, 5)
+listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+listLayout.Parent = scroll
+
+local uiPad = Instance.new("UIPadding")
+uiPad.PaddingTop = UDim.new(0, 3)
+uiPad.PaddingLeft = UDim.new(0, 3)
+uiPad.PaddingRight = UDim.new(0, 3)
+uiPad.Parent = scroll
+
+local function makeLabel(txt)
+    local f = Instance.new("TextLabel")
+    f.Size = UDim2.new(1, 0, 0, 16)
+    f.BackgroundTransparency = 1
+    f.Text = txt
+    f.TextColor3 = Color3.fromRGB(120, 120, 120)
+    f.TextSize = 10
+    f.Font = Enum.Font.GothamBold
+    f.TextXAlignment = Enum.TextXAlignment.Left
+    f.ZIndex = 7
+    f.Parent = scroll
+end
+
+local toggleRefs = {}
+
+local function makeToggle(txt, default, callback)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, 0, 0, 38)
+    row.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+    row.BorderSizePixel = 0
+    row.ZIndex = 7
+    row.Parent = scroll
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -54, 1, 0)
+    lbl.Position = UDim2.new(0, 10, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = txt
+    lbl.TextColor3 = Color3.fromRGB(210, 210, 210)
+    lbl.TextSize = 11
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.ZIndex = 8
+    lbl.Parent = row
+
+    local bg = Instance.new("Frame")
+    bg.Size = UDim2.new(0, 38, 0, 20)
+    bg.Position = UDim2.new(1, -44, 0.5, -10)
+    bg.BackgroundColor3 = default and Color3.fromRGB(0, 190, 90) or Color3.fromRGB(55, 55, 55)
+    bg.BorderSizePixel = 0
+    bg.ZIndex = 8
+    bg.Parent = row
+    Instance.new("UICorner", bg).CornerRadius = UDim.new(1, 0)
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 14, 0, 14)
+    knob.Position = default and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.BorderSizePixel = 0
+    knob.ZIndex = 9
+    knob.Parent = bg
+    Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
+    local state = default
+    local hitbox = Instance.new("TextButton")
+    hitbox.Size = UDim2.new(1, 0, 1, 0)
+    hitbox.BackgroundTransparency = 1
+    hitbox.Text = ""
+    hitbox.ZIndex = 10
+    hitbox.Parent = row
+
+    local function toggle()
+        state = not state
+        tween:Create(bg, TweenInfo.new(0.12), {
+            BackgroundColor3 = state and Color3.fromRGB(0, 190, 90) or Color3.fromRGB(55, 55, 55)
+        }):Play()
+        tween:Create(knob, TweenInfo.new(0.12), {
+            Position = state and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+        }):Play()
+        callback(state)
+    end
+
+    hitbox.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            toggle()
+        end
+    end)
+
+    local ref = {
+        setState = function(v)
+            if state == v then return end
+            state = v
+            bg.BackgroundColor3 = v and Color3.fromRGB(0, 190, 90) or Color3.fromRGB(55, 55, 55)
+            knob.Position = v and UDim2.new(1, -17, 0.5, -7) or UDim2.new(0, 3, 0.5, -7)
+            callback(v)
+        end
+    }
+    return ref
+end
+
+local function makeSlider(txt, default, min, max, dec, callback)
+    local wrap = Instance.new("Frame")
+    wrap.Size = UDim2.new(1, 0, 0, 50)
+    wrap.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+    wrap.BorderSizePixel = 0
+    wrap.ZIndex = 7
+    wrap.Parent = scroll
+    Instance.new("UICorner", wrap).CornerRadius = UDim.new(0, 8)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(1, -44, 0, 20)
+    lbl.Position = UDim2.new(0, 10, 0, 4)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = txt
+    lbl.TextColor3 = Color3.fromRGB(210, 210, 210)
+    lbl.TextSize = 10
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.ZIndex = 8
+    lbl.Parent = wrap
+
+    local valLbl = Instance.new("TextLabel")
+    valLbl.Size = UDim2.new(0, 40, 0, 20)
+    valLbl.Position = UDim2.new(1, -44, 0, 4)
+    valLbl.BackgroundTransparency = 1
+    valLbl.Text = tostring(default)
+    valLbl.TextColor3 = Color3.fromRGB(0, 190, 90)
+    valLbl.TextSize = 10
+    valLbl.Font = Enum.Font.GothamBold
+    valLbl.TextXAlignment = Enum.TextXAlignment.Right
+    valLbl.ZIndex = 8
+    valLbl.Parent = wrap
+
+    local track = Instance.new("Frame")
+    track.Size = UDim2.new(1, -20, 0, 5)
+    track.Position = UDim2.new(0, 10, 0, 32)
+    track.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    track.BorderSizePixel = 0
+    track.ZIndex = 8
+    track.Parent = wrap
+    Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
+    local fill = Instance.new("Frame")
+    fill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    fill.BackgroundColor3 = Color3.fromRGB(0, 190, 90)
+    fill.BorderSizePixel = 0
+    fill.ZIndex = 9
+    fill.Parent = track
+    Instance.new("UICorner", fill).CornerRadius = UDim.new(1, 0)
+
+    local dragging = false
+
+    local function update(x)
+        local pct = math.clamp((x - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
+        local val = math.floor((min + (max - min) * pct) * 10^dec + 0.5) / 10^dec
+        fill.Size = UDim2.new(pct, 0, 1, 0)
+        valLbl.Text = tostring(val)
+        callback(val)
+    end
+
+    local hitbox = Instance.new("TextButton")
+    hitbox.Size = UDim2.new(1, 0, 1, 0)
+    hitbox.BackgroundTransparency = 1
+    hitbox.Text = ""
+    hitbox.ZIndex = 10
+    hitbox.Parent = wrap
+
+    hitbox.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            update(inp.Position.X)
+        end
+    end)
+    hitbox.InputEnded:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    uis.InputChanged:Connect(function(inp)
+        if not dragging then return end
+        if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseMove then
+            update(inp.Position.X)
+        end
+    end)
+end
+
+local function makeDropdown(txt, values, default, callback)
+    local wrap = Instance.new("Frame")
+    wrap.Size = UDim2.new(1, 0, 0, 38)
+    wrap.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+    wrap.BorderSizePixel = 0
+    wrap.ClipsDescendants = false
+    wrap.ZIndex = 7
+    wrap.Parent = scroll
+    Instance.new("UICorner", wrap).CornerRadius = UDim.new(0, 8)
+
+    local lbl = Instance.new("TextLabel")
+    lbl.Size = UDim2.new(0.5, 0, 1, 0)
+    lbl.Position = UDim2.new(0, 10, 0, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text = txt
+    lbl.TextColor3 = Color3.fromRGB(210, 210, 210)
+    lbl.TextSize = 11
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.ZIndex = 8
+    lbl.Parent = wrap
+
+    local ddBtn = Instance.new("TextButton")
+    ddBtn.Size = UDim2.new(0, 88, 0, 24)
+    ddBtn.Position = UDim2.new(1, -92, 0.5, -12)
+    ddBtn.BackgroundColor3 = Color3.fromRGB(38, 38, 38)
+    ddBtn.TextColor3 = Color3.fromRGB(0, 190, 90)
+    ddBtn.Text = values[default] .. " ▾"
+    ddBtn.TextSize = 10
+    ddBtn.Font = Enum.Font.GothamBold
+    ddBtn.BorderSizePixel = 0
+    ddBtn.ZIndex = 9
+    ddBtn.Parent = wrap
+    Instance.new("UICorner", ddBtn).CornerRadius = UDim.new(0, 6)
+
+    local dd = Instance.new("Frame")
+    dd.Size = UDim2.new(0, 88, 0, #values * 30)
+    dd.Position = UDim2.new(1, -92, 1, 4)
+    dd.BackgroundColor3 = Color3.fromRGB(32, 32, 32)
+    dd.BorderSizePixel = 0
+    dd.Visible = false
+    dd.ZIndex = 20
+    dd.Parent = wrap
+    Instance.new("UICorner", dd).CornerRadius = UDim.new(0, 8)
+
+    for i, v in ipairs(values) do
+        local opt = Instance.new("TextButton")
+        opt.Size = UDim2.new(1, 0, 0, 30)
+        opt.Position = UDim2.new(0, 0, 0, (i-1)*30)
+        opt.BackgroundTransparency = 1
+        opt.Text = v
+        opt.TextColor3 = Color3.fromRGB(200, 200, 200)
+        opt.TextSize = 10
+        opt.Font = Enum.Font.Gotham
+        opt.ZIndex = 21
+        opt.Parent = dd
+        opt.InputBegan:Connect(function(inp)
+            if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+                ddBtn.Text = v .. " ▾"
+                dd.Visible = false
+                callback(v)
+            end
+        end)
+    end
+
+    ddBtn.InputBegan:Connect(function(inp)
+        if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+            dd.Visible = not dd.Visible
+        end
+    end)
+end
+makeLabel("combat")
+makeToggle("auto shoot", getgenv().Config.Enabled, function(v) getgenv().Config.Enabled = v end)
+makeDropdown("weapon slot", {"Primary","Secondary","Melee"}, 1, function(v) getgenv().Config.WeaponSlot = v end)
+makeSlider("fire rate", getgenv().Config.FireRate, 0.01, 0.5, 2, function(v) getgenv().Config.FireRate = v end)
+makeSlider("max distance", getgenv().Config.MaxDistance, 50, 2000, 0, function(v) getgenv().Config.MaxDistance = v end)
+makeLabel("  ── movement ──")
+
+local ugToggle, orToggle
+ugToggle = makeToggle("underground", false, function(v)
+    getgenv().Config.Underground = v
+    if v then
+        getgenv().Config.Orbit = false
+        if orToggle then orToggle.setState(false) end
+        if not undergroundConn then startUnderground() end
+    end
+end)
+orToggle = makeToggle("orbit", false, function(v)
+    getgenv().Config.Orbit = v
+    if v then
+        getgenv().Config.Underground = false
+        if ugToggle then ugToggle.setState(false) end
+        if not orbitConn then startOrbit() end
+    end
+end)
+makeSlider("orbit radius", getgenv().Config.OrbitRadius, 1, 20, 1, function(v) getgenv().Config.OrbitRadius = v end)
+makeSlider("orbit speed", getgenv().Config.OrbitSpeed, 0.5, 10, 1, function(v) getgenv().Config.OrbitSpeed = v end)
+local menuVisible = true
+toggleBtn.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        menuVisible = not menuVisible
+        panel.Visible = menuVisible
+        toggleBtn.Text = menuVisible and "✕" or "☰"
+    end
+end)
+local dragging = false
+local dragStart, startPos
+titleBar.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = inp.Position
+        startPos = panel.Position
+    end
+end)
+titleBar.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+uis.InputChanged:Connect(function(inp)
+    if not dragging then return end
+    if inp.UserInputType == Enum.UserInputType.Touch or inp.UserInputType == Enum.UserInputType.MouseMove then
+        local d = inp.Position - dragStart
+        panel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+    end
+end)
+
+-- made for rcr holy aura dada
