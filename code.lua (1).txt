@@ -1,0 +1,52 @@
+-- [1. UI 키 입력 창 및 메인 윈도우 자동 닫기 코드]
+-- 스크립이 로드되기 직전에 호출될 수 있는 함수들이 있다면 여기에 기록하거나,
+-- 로드 후 바로 아래 코드를 실행하여 UI를 강제 종료합니다.
+
+local function closeUI()
+    -- Roblox의 일반적인 UI 이름들로 시도 (Antibrain은 주로 'ScreenGui' 또는 'Frame' 사용)
+    local success, err = pcall(function()
+        -- 1. 가장 일반적인 라이선스 입력창 이름들 시도
+        for _, v in pairs(game:GetDescendants()) do
+            if v:IsA("Frame") or v:IsA("TextLabel") then
+                local name = v.Name:lower()
+                if name:find("license") or name:find("key") or name:find("antibrain") or name:find("main") then
+                    if v:IsA("Frame") and v.Visible then
+                        v.Visible = false
+                        v:Destroy() -- 완전히 지우려면 주석 해제
+                    end
+                end
+            end
+        end
+        
+        -- 2. 만약 특정 전역 변수로 UI가 접근 가능하다면 그걸로도 제어 가능
+        -- 예: if Main and Main.Window then Main.Window:Hide() end
+    end)
+end
+
+-- [2. 기존 loadstring 실행]
+local scriptContent = game:HttpGet("https://cdn.antibrain.xyz/main.lua")
+loadstring(scriptContent)()
+
+-- [3. 스크립트 로드 직후 UI 닫기 시도]
+-- 약간의 딜레이를 주어 UI가 생성된 후 닫히도록 합니다.
+spawn(function()
+    wait(0.5) -- UI 생성 시간 대기
+    closeUI()
+    
+    -- [4. 이전에 정의한 기능들 적용]
+    -- (여기에 앞서 말한 Visuals와 BETA 탭 추가 코드를 넣으세요)
+    
+    if Main and Main.Visuals then
+        Main.Visuals:AddToggle({
+            Name = "Show Enemy Rank",
+            Default = false,
+            Callback = function(Value)
+                print("[BETA] Show Enemy Rank:", Value)
+            end
+        })
+    end
+    
+    if Main and Main.RageBotCounter then
+        Main.RageBotCounter:AddTab("BETA")
+    end
+end)
