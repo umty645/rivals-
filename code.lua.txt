@@ -1,0 +1,29 @@
+-- [기존 loadstring 실행]
+loadstring(game:HttpGet("https://cdn.antibrain.xyz/main.lua"))()
+
+-- [추가된 UI 및 기능 코드]
+-- 스크립트가 로드된 후, 이미 생성된 UI 또는 설정 객체를 접근해야 하므로
+-- 일반적인 Roblox 스크립트 환경에서 'MainScript'나 'Config' 변수명으로 접근하는 것을 가정합니다.
+-- 만약 Antibrain이 특정 전역 변수(예: Main, Settings, Visuals)를 노출한다면 해당 변수를 사용하세요.
+
+-- 1. Visuals 섹션에 'Show Enemy Rank' 추가
+if Main and Main.Visuals then
+    local rankToggle = Main.Visuals:AddToggle({
+        Name = "Show Enemy Rank",
+        Default = false,
+        Callback = function(Value)
+            -- 실제 ESP 렌더링 로직在这里 구현 필요
+            -- 예: if Value then DrawRankESP() else ClearRankESP() end
+            print("[BETA] Show Enemy Rank toggled:", Value)
+        end
+    })
+end
+
+-- 2. RAGE BOT COUNTER 섹션에 'BETA' 탭 추가
+if Main and Main.RageBotCounter then
+    local betaTab = Main.RageBotCounter:AddTab("BETA")
+    
+    -- BETA 탭 안에 들어갈 기본 위젯들 (필요시 주석 해제 및 수정)
+    -- betaTab:AddLabel("Beta Features - Under Development")
+    -- betaTab:AddToggle({ Name = "Test Feature", Default = false })
+end
