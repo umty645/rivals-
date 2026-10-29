@@ -1,0 +1,349 @@
+local repo = 'https://raw.githubusercontent.com/violin-suzutsuki/LinoriaLib/main/'
+local Library = loadstring(game:HttpGet(repo .. 'Library.lua'))()
+local ThemeManager = loadstring(game:HttpGet(repo .. 'addons/ThemeManager.lua'))()
+local SaveManager = loadstring(game:HttpGet(repo .. 'addons/SaveManager.lua'))()
+
+local repS = cloneref(game:GetService("ReplicatedStorage"))
+local plrs = cloneref(game:GetService("Players"))
+local runS = cloneref(game:GetService("RunService"))
+local uis = cloneref(game:GetService("UserInputService"))
+local ws = cloneref(game:GetService("Workspace"))
+
+local lplr = plrs.LocalPlayer
+local util = require(repS.Modules.Utility)
+local enum = require(repS.Modules.EnumLibrary)
+local FighterController = require(lplr.PlayerScripts.Controllers.FighterController)
+
+getgenv().Config = {
+    Enabled = true,
+    FireRate = 0.05,
+    WeaponSlot = "Primary",
+    MaxDistance = 500
+}
+
+getgenv().FlyConfig = {
+    Enabled = false,
+    Speed = 50,
+    HoverEnemy = false,
+    HoverHeight = 12,
+    ToggleKey = Enum.KeyCode.X
+}
+
+local slots = { Primary = 1, Secondary = 2, Melee = 3 }
+local function getSlotNumber() 
+    return slots[getgenv().Config.WeaponSlot] or 1 
+end
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        if not getgenv().Config.Enabled then continue end
+        local localFighter = FighterController.LocalFighter
+        if localFighter and localFighter.EquippedItem == nil then
+            pcall(function() localFighter:EquipItem(getSlotNumber()) end)
+        end
+    end
+end)
+
+local function getClosestTarget()
+    local char = lplr.Character
+    local myRoot = char and char:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil, nil, nil end
+
+    local closestModel, closestRoot, closestHead = nil, nil, nil
+    local closestDist = getgenv().Config.MaxDistance
+
+    for _, obj in ipairs(ws:GetDescendants()) do
+        if obj:IsA("Model") and obj ~= char then
+            local pRoot = obj:FindFirstChild("HumanoidRootPart")
+            local pHead = obj:FindFirstChild("Head")
+            local pHum = obj:FindFirstChildWhichIsA("Humanoid")
+
+            if pRoot and pHead and pHum and pHum.Health > 0 then
+                if not plrs:GetPlayerFromCharacter(obj) then
+                    local dist = (myRoot.Position - pRoot.Position).Magnitude
+                    if dist < closestDist then
+                        closestDist = dist
+                        closestModel = obj
+                        closestRoot = pRoot
+                        closestHead = pHead
+                    end
+                end
+            end
+        end
+    end
+    return closestModel, closestRoot, closestHead
+end
+
+local lastFire = 0
+
+runS.Heartbeat:Connect(function()
+    if not getgenv().Config.Enabled then return end
+    
+    local targetModel, targetRoot, targetHead = getClosestTarget()
+    if not targetModel or not targetHead or not targetRoot then return end
+
+    local char = lplr.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not char or not root then return end
+
+    local localFighter = FighterController.LocalFighter
+    if not localFighter or not localFighter.EquippedItem then return end
+
+    if tick() - lastFire < getgenv().Config.FireRate then return end
+    lastFire = tick()
+
+    local originPos = targetHead.Position + Vector3.new(0, 1, 0) 
+    local targetPos = targetHead.Position
+    local aimCF = CFrame.lookAt(originPos, targetPos)
+    local targetCF = targetHead.CFrame
+    
+    local randomOffset = Vector3.new(
+        (math.random() - 0.5) * 0.02,
+        (math.random() - 0.5) * 0.02,
+        (math.random() - 0.5) * 0.02
+    )
+    local aimedPos = targetPos + randomOffset
+    local objSpaceHeadOffset = targetHead.CFrame:ToObjectSpace(CFrame.new(aimedPos))
+
+    local cameradata = {}
+    cameradata[utf8.char(1)] = {
+        [utf8.char(0)] = util:EncodeCFrame(aimCF),
+        [utf8.char(1)] = util:EncodeCFrame(targetCF),
+        [utf8.char(2)] = targetHead,
+        [utf8.char(3)] = util:EncodeCFrame(objSpaceHeadOffset)
+    }
+
+    pcall(function()
+        repS.Remotes.Replication.Fighter.UseItem:FireServer(
+            localFighter.EquippedItem:Get("ObjectID"),
+            enum:ToEnum("StartShooting"),
+            cameradata,
+            nil
+        )
+    end)
+end)
+
+local flying = false
+local alignVelocity, alignOrientation, attachment
+
+local function startFlying()
+    local char = lplr.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not root or not hum then return end
+
+    flying = true
+    hum.PlatformStand = true
+
+    attachment = Instance.new("Attachment", root)
+    
+    alignVelocity = Instance.new("LinearVelocity")
+    alignVelocity.MaxForce = 9e9
+    alignVelocity.VectorVelocity = Vector3.zero
+    alignVelocity.Attachment0 = attachment
+    alignVelocity.RelativeTo = Enum.ActuatorRelativeTo.World
+    alignVelocity.Parent = root
+
+    alignOrientation = Instance.new("AlignOrientation")
+    alignOrientation.MaxTorque = 9e9
+    alignOrientation.Responsiveness = 200
+    alignOrientation.Mode = Enum.OrientationAlignmentMode.OneAttachment
+    alignOrientation.Attachment0 = attachment
+    alignOrientation.Parent = root
+end
+
+local function stopFlying()
+    flying = false
+    local char = lplr.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then hum.PlatformStand = false end
+    end
+    if alignVelocity then alignVelocity:Destroy() end
+    if alignOrientation then alignOrientation:Destroy() end
+    if attachment then attachment:Destroy() end
+end
+
+local function toggleFly()
+    getgenv().FlyConfig.Enabled = not getgenv().FlyConfig.Enabled
+    if getgenv().FlyConfig.Enabled then
+        startFlying()
+    else
+        stopFlying()
+    end
+    if Toggles.FlyToggle then
+        Toggles.FlyToggle:SetValue(getgenv().FlyConfig.Enabled)
+    end
+end
+
+uis.InputBegan:Connect(function(input, gpe)
+    if gpe then return end
+    if input.KeyCode == getgenv().FlyConfig.ToggleKey then
+        toggleFly()
+    end
+end)
+
+runS.RenderStepped:Connect(function()
+    local char = lplr.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local cam = ws.CurrentCamera
+    if not root then return end
+
+    if getgenv().FlyConfig.HoverEnemy then
+        local targetModel, targetRoot, targetHead = getClosestTarget()
+        if targetRoot then
+            local hoverPos = targetRoot.Position + Vector3.new(0, getgenv().FlyConfig.HoverHeight, 0)
+            root.CFrame = CFrame.lookAt(hoverPos, targetRoot.Position)
+            if alignVelocity then alignVelocity.VectorVelocity = Vector3.zero end
+            return
+        end
+    end
+
+    if flying and cam and alignVelocity and alignOrientation then
+        local moveDir = Vector3.zero
+        if uis:IsKeyDown(Enum.KeyCode.W) then moveDir = moveDir + cam.CFrame.LookVector end
+        if uis:IsKeyDown(Enum.KeyCode.S) then moveDir = moveDir - cam.CFrame.LookVector end
+        if uis:IsKeyDown(Enum.KeyCode.A) then moveDir = moveDir - cam.CFrame.RightVector end
+        if uis:IsKeyDown(Enum.KeyCode.D) then moveDir = moveDir + cam.CFrame.RightVector end
+        if uis:IsKeyDown(Enum.KeyCode.Space) then moveDir = moveDir + Vector3.new(0, 1, 0) end
+        if uis:IsKeyDown(Enum.KeyCode.LeftShift) then moveDir = moveDir - Vector3.new(0, 1, 0) end
+
+        if moveDir.Magnitude > 0 then
+            moveDir = moveDir.Unit
+        end
+
+        alignVelocity.VectorVelocity = moveDir * getgenv().FlyConfig.Speed
+        alignOrientation.CFrame = cam.CFrame
+    end
+end)
+
+local Window = Library:CreateWindow({
+    Title = 'boneclawlegend',
+    Center = true,
+    AutoShow = true,
+    TabPadding = 8,
+    MenuFadeTime = 0.2
+})
+
+local Tabs = {
+    Main = Window:AddTab('main'),
+    ['ui settings'] = Window:AddTab('ui settings'),
+}
+
+local CombatGroup = Tabs.Main:AddLeftGroupbox('combat settings')
+
+CombatGroup:AddToggle('EnabledToggle', {
+    Text = 'enable auto-shoot',
+    Default = getgenv().Config.Enabled,
+    Tooltip = 'toggles the replication attack loop',
+    Callback = function(Value)
+        getgenv().Config.Enabled = Value
+    end
+})
+
+CombatGroup:AddDropdown('WeaponSlotDropdown', {
+    Values = { 'Primary', 'Secondary', 'Melee' },
+    Default = 1,
+    Multi = false,
+    Text = 'weapon slot',
+    Tooltip = 'select which slot to auto-equip',
+    Callback = function(Value)
+        getgenv().Config.WeaponSlot = Value
+    end
+})
+
+CombatGroup:AddSlider('FireRateSlider', {
+    Text = 'fire rate (seconds)',
+    Default = getgenv().Config.FireRate,
+    Min = 0.01,
+    Max = 0.5,
+    Rounding = 2,
+    Compact = false,
+    Callback = function(Value)
+        getgenv().Config.FireRate = Value
+    end
+})
+
+CombatGroup:AddSlider('MaxDistSlider', {
+    Text = 'max distance',
+    Default = getgenv().Config.MaxDistance,
+    Min = 50,
+    Max = 2000,
+    Rounding = 0,
+    Compact = false,
+    Callback = function(Value)
+        getgenv().Config.MaxDistance = Value
+    end
+})
+
+local MovementGroup = Tabs.Main:AddRightGroupbox('movement settings')
+
+MovementGroup:AddToggle('HoverToggle', {
+    Text = 'hover above target',
+    Default = getgenv().FlyConfig.HoverEnemy,
+    Tooltip = 'automatically stays directly above the targeted enemy',
+    Callback = function(Value)
+        getgenv().FlyConfig.HoverEnemy = Value
+    end
+})
+
+MovementGroup:AddSlider('HoverHeightSlider', {
+    Text = 'hover height',
+    Default = getgenv().FlyConfig.HoverHeight,
+    Min = 5,
+    Max = 40,
+    Rounding = 0,
+    Compact = false,
+    Callback = function(Value)
+        getgenv().FlyConfig.HoverHeight = Value
+    end
+})
+
+MovementGroup:AddToggle('FlyToggle', {
+    Text = 'enable fly',
+    Default = getgenv().FlyConfig.Enabled,
+    Tooltip = 'toggle character flight',
+    Callback = function(Value)
+        if Value ~= getgenv().FlyConfig.Enabled then
+            toggleFly()
+        end
+    end
+}):AddKeyPicker('FlyKeybind', {
+    Default = 'X',
+    SyncToggleState = true,
+    Mode = 'Toggle',
+    Text = 'fly keybind',
+    NoUI = false,
+    Callback = function()
+        toggleFly()
+    end
+})
+
+MovementGroup:AddSlider('FlySpeedSlider', {
+    Text = 'fly speed',
+    Default = getgenv().FlyConfig.Speed,
+    Min = 10,
+    Max = 300,
+    Rounding = 0,
+    Compact = false,
+    Callback = function(Value)
+        getgenv().FlyConfig.Speed = Value
+    end
+})
+
+local MenuGroup = Tabs['ui settings']:AddLeftGroupbox('menu')
+
+MenuGroup:AddButton('unload', function() Library:Unload() end)
+MenuGroup:AddLabel('menu bind'):AddKeyPicker('MenuKeybind', { Default = 'End', NoUI = true, Text = 'menu keybind' })
+
+Library.ToggleKeybind = Options.MenuKeybind
+
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind', 'FlyKeybind' })
+ThemeManager:ApplyToTab(Tabs['ui settings'])
+SaveManager:BuildConfigSection(Tabs['ui settings'])
+SaveManager:LoadAutoloadConfig()
